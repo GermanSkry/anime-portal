@@ -15,6 +15,7 @@ class AnimeResponse(BaseModel):
     genres: list
     studios: list
     cover_image: Optional[str]
+    trailer_url: Optional[str] = None
 
 @router.get("", response_model=list[AnimeResponse])
 async def get_anime(
@@ -33,15 +34,16 @@ async def get_anime(
                 "title": "title ASC"
             }.get(sort_by, "rating DESC")
 
-            # Get anime with studios (joined from anime_studios table)
+            # Get anime with studios and trailers
             await cur.execute(
                 f"""
                 SELECT a.id, a.title, a.title_english, a.year, a.rating, a.genres, a.cover_image,
+                       a.trailer_url,
                        COALESCE(array_agg(s.name) FILTER (WHERE s.name IS NOT NULL), '{{}}') as studios
                 FROM anime a
                 LEFT JOIN anime_studios asas ON a.id = asas.anime_id
                 LEFT JOIN studios s ON asas.studio_id = s.id
-                GROUP BY a.id, a.title, a.title_english, a.year, a.rating, a.genres, a.cover_image
+                GROUP BY a.id, a.title, a.title_english, a.year, a.rating, a.genres, a.cover_image, a.trailer_url
                 ORDER BY {order_by}
                 LIMIT %s OFFSET %s;
                 """,
@@ -57,8 +59,9 @@ async def get_anime(
                     year=r[3],
                     rating=r[4],
                     genres=r[5] or [],
-                    studios=list(r[7]) if r[7] else [],
-                    cover_image=r[6]
+                    cover_image=r[6],
+                    trailer_url=r[7],
+                    studios=list(r[8]) if r[8] else []
                 )
                 for r in results
             ]
@@ -75,12 +78,13 @@ async def get_anime_by_id(anime_id: int):
             await cur.execute(
                 """
                 SELECT a.id, a.title, a.title_english, a.year, a.rating, a.genres, a.cover_image,
+                       a.trailer_url,
                        COALESCE(array_agg(s.name) FILTER (WHERE s.name IS NOT NULL), '{}') as studios
                 FROM anime a
                 LEFT JOIN anime_studios asas ON a.id = asas.anime_id
                 LEFT JOIN studios s ON asas.studio_id = s.id
                 WHERE a.id = %s
-                GROUP BY a.id, a.title, a.title_english, a.year, a.rating, a.genres, a.cover_image;
+                GROUP BY a.id, a.title, a.title_english, a.year, a.rating, a.genres, a.cover_image, a.trailer_url;
                 """,
                 (anime_id,)
             )
@@ -96,15 +100,16 @@ async def get_anime_by_id(anime_id: int):
                 year=result[3],
                 rating=result[4],
                 genres=result[5] or [],
-                studios=list(result[7]) if result[7] else [],
-                cover_image=result[6]
+                cover_image=result[6],
+                trailer_url=result[7],
+                studios=list(result[8]) if result[8] else []
             )
     finally:
         await conn.close()
 
 @router.get("/stats/count")
 async def get_anime_count():
-    """Get total anime count (useful for pagination)"""
+    """Get total anime count"""
     conn = await psycopg.AsyncConnection.connect(settings.database_url)
 
     try:

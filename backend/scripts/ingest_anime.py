@@ -62,7 +62,7 @@ async def ingest_anime():
             print("🔧 Initializing database schema...")
             await cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
 
-            # Main anime table (enhanced)
+            # Main anime table (enhanced with trailers - Phase 1.5)
             await cur.execute("""
                 CREATE TABLE IF NOT EXISTS anime (
                     id SERIAL PRIMARY KEY,
@@ -78,6 +78,7 @@ async def ingest_anime():
                     plot TEXT,
                     cover_image VARCHAR(255),
                     banner_image VARCHAR(255),
+                    trailer_url VARCHAR(500),
                     genres TEXT[] DEFAULT '{}',
                     themes TEXT[] DEFAULT '{}',
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -191,9 +192,9 @@ async def ingest_anime():
                         INSERT INTO anime (
                             anilist_id, title, title_english, title_japanese,
                             year, season, episodes, status, rating, plot,
-                            cover_image, banner_image, genres, themes
+                            cover_image, banner_image, trailer_url, genres, themes
                         )
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         RETURNING id;
                     """, (
                         anime["id"],
@@ -208,6 +209,7 @@ async def ingest_anime():
                         anime.get("plot"),
                         anime.get("cover_image"),
                         anime.get("banner_image"),
+                        anime.get("trailer_url"),
                         anime.get("genres", []),
                         anime.get("themes", [])
                     ))

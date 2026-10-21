@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fetch anime data from AniList API (simplified, more reliable)"""
+"""Fetch anime data from AniList API with trailers (Phase 1.5)"""
 import httpx
 import json
 import asyncio
@@ -8,7 +8,7 @@ from pathlib import Path
 DATA_DIR = Path(__file__).parent.parent / "data"
 DATA_DIR.mkdir(exist_ok=True)
 
-# Simpler, more reliable AniList query
+# AniList query with trailers, descriptions
 ANILIST_QUERY = """
 query ($page: Int) {
   Page(page: $page, perPage: 50) {
@@ -32,6 +32,11 @@ query ($page: Int) {
       }
       bannerImage
       genres
+      trailer {
+        id
+        site
+        thumbnail
+      }
       studios(isMain: true) {
         nodes {
           name
@@ -43,7 +48,7 @@ query ($page: Int) {
 """
 
 async def fetch_anime_data(pages: int = 5) -> list:
-    """Fetch anime from AniList API"""
+    """Fetch anime from AniList API with trailers"""
     anime_list = []
 
     async with httpx.AsyncClient(timeout=30.0) as client:
@@ -79,6 +84,13 @@ async def fetch_anime_data(pages: int = 5) -> list:
                     try:
                         title = anime.get("title", {}).get("english") or anime.get("title", {}).get("romaji")
 
+                        # Build trailer URL
+                        trailer_url = None
+                        if anime.get("trailer"):
+                            trailer = anime.get("trailer", {})
+                            if trailer.get("site") == "youtube" and trailer.get("id"):
+                                trailer_url = f"https://www.youtube.com/watch?v={trailer.get('id')}"
+
                         processed = {
                             "id": anime.get("id"),
                             "title": title,
@@ -92,6 +104,7 @@ async def fetch_anime_data(pages: int = 5) -> list:
                             "plot": anime.get("description", "").replace("<br>", " ")[:500] if anime.get("description") else "",
                             "cover_image": anime.get("coverImage", {}).get("large"),
                             "banner_image": anime.get("bannerImage"),
+                            "trailer_url": trailer_url,
                             "genres": anime.get("genres", []),
                             "themes": [],
                             "studios": [s["name"] for s in anime.get("studios", {}).get("nodes", [])],
@@ -114,12 +127,11 @@ async def fetch_anime_data(pages: int = 5) -> list:
     return anime_list
 
 async def main():
-    print("🔄 Fetching anime data from AniList...\n")
+    print("🔄 Fetching anime data with trailers (Phase 1.5)...\n")
     anime_list = await fetch_anime_data(pages=5)
 
     if not anime_list:
         print("\n⚠️  No data fetched. Using sample data for testing...\n")
-        # Create minimal test data so Phase 1 can proceed
         anime_list = create_sample_data()
 
     # Save to JSON
@@ -130,9 +142,16 @@ async def main():
     print(f"\n✅ Data saved:")
     print(f"   Anime: {output_file}")
     print(f"   Total: {len(anime_list)} entries")
-    print(f"\n📊 Sample anime:")
-    for anime in anime_list[:3]:
-        print(f"   - {anime['title']} ({anime['year']}) | Rating: {anime['rating']:.1f} ⭐")
+
+    # Count trailers
+    trailers = sum(1 for a in anime_list if a.get("trailer_url"))
+    print(f"   Trailers: {trailers}/{len(anime_list)} ({100*trailers/len(anime_list):.0f}%)")
+
+    print(f"\n📊 Sample anime with trailer:")
+    for anime in anime_list:
+        if anime.get("trailer_url"):
+            print(f"   - {anime['title']} | {anime['trailer_url']}")
+            break
 
 def create_sample_data() -> list:
     """Create minimal sample data for testing if API fails"""
@@ -150,50 +169,13 @@ def create_sample_data() -> list:
             "plot": "In a world plagued by creatures known as Titans, civilization retreats behind massive walls.",
             "cover_image": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx16498-kW0x9XY2NXdd.jpg",
             "banner_image": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/16498.jpg",
+            "trailer_url": "https://www.youtube.com/watch?v=NzUHNEZN20E",
             "genres": ["Action", "Drama", "Fantasy"],
             "themes": ["War", "Survival"],
             "studios": ["Wit Studio"],
             "characters": [],
             "relations": []
         },
-        {
-            "id": 9253,
-            "title": "Steins;Gate",
-            "title_english": "Steins;Gate",
-            "title_japanese": "シュタインズゲート",
-            "year": 2011,
-            "season": "SPRING",
-            "episodes": 24,
-            "status": "FINISHED",
-            "rating": 9.0,
-            "plot": "Okabe, a self-labeled mad scientist, discovers that a microwave can send text messages to the past.",
-            "cover_image": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx9253-EZvKpPKgWqvh.jpg",
-            "banner_image": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/9253.jpg",
-            "genres": ["Sci-Fi", "Thriller"],
-            "themes": ["Time Travel"],
-            "studios": ["White Fox"],
-            "characters": [],
-            "relations": []
-        },
-        {
-            "id": 21,
-            "title": "Fullmetal Alchemist",
-            "title_english": "Fullmetal Alchemist",
-            "title_japanese": "鋼の錬金術師",
-            "year": 2005,
-            "season": "FALL",
-            "episodes": 51,
-            "status": "FINISHED",
-            "rating": 8.1,
-            "plot": "Two brothers use alchemy to bring their mother back from the dead, but the ritual goes wrong.",
-            "cover_image": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx21-uYt7K4BtHLlh.jpg",
-            "banner_image": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/21.jpg",
-            "genres": ["Action", "Adventure", "Drama"],
-            "themes": ["Magic"],
-            "studios": ["Bones"],
-            "characters": [],
-            "relations": []
-        }
     ]
 
 if __name__ == "__main__":
