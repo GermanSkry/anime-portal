@@ -137,8 +137,14 @@ Build React interface for the chatbot
    - Links to details
    - Images, ratings, genres
 
-3. **Search Suggestions**
-   - Quick buttons ("Action", "Dark", "Recently Trending")
+3. **Search & Filter Dashboard**
+   - Full-text search bar
+   - Multi-filter panel:
+     - Genre checkboxes
+     - Year range slider
+     - Studio filter
+     - Rating sort (high → low)
+   - Quick preset buttons ("Action", "Dark", "Recently Trending")
    - Previous searches
 
 4. **Details Page**
@@ -161,13 +167,16 @@ frontend/
 │   │   ├── ChatWindow.tsx
 │   │   ├── MessageBubble.tsx
 │   │   ├── AnimeCard.tsx
-│   │   └── AnimeDetail.tsx
+│   │   ├── AnimeDetail.tsx
+│   │   └── SearchFilters.tsx (genres, year, studio, rating)
 │   ├── pages/
 │   │   ├── ChatPage.tsx
+│   │   ├── BrowsePage.tsx (dashboard with filters)
 │   │   └── AnimePage.tsx
 │   ├── hooks/
 │   │   ├── useChat.ts
-│   │   └── useAnime.ts
+│   │   ├── useAnime.ts
+│   │   └── useSearch.ts (filter state)
 │   └── App.tsx
 ```
 
