@@ -106,6 +106,8 @@ async def semantic_search(query_text: str = Query(..., min_length=1), limit: int
     try:
         # Generate embedding for query
         query_embedding = await generate_embedding(query_text)
+        # Replace NaN/Inf with 0
+        query_embedding = [0.0 if (x != x or x == float('inf') or x == float('-inf')) else x for x in query_embedding]
         embedding_str = "[" + ",".join(str(x) for x in query_embedding) + "]"
 
         async with conn.cursor() as cur:
