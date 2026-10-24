@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import routers
-from app.routes import anime, characters, stats, search, recommend
+from app.routes import anime, characters, stats, search, recommend, chat
 
 app = FastAPI(title="Anime Portal API", version="0.1.0")
 
@@ -29,6 +29,7 @@ async def root():
     return {"message": "Anime Portal API - Ready"}
 
 # Include routers (specific routes first, catch-all last)
+app.include_router(chat.router)
 app.include_router(search.router)
 app.include_router(recommend.router)
 app.include_router(stats.router)
