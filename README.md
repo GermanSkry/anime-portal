@@ -9,12 +9,13 @@ A full-stack web application for discovering, searching, and getting AI-powered 
 
 ## Features
 
-- 🔍 **Interactive Anime Search** — Filter by genre, year, studio, rating
-- 📊 **Analytics Dashboard** — Visualize trends, popular genres, studios
-- 🤖 **AI Recommendations** — Claude-powered anime suggestions with web search
-- 💬 **Chat Interface** — Talk to Claude about anime preferences
-- 📱 **Responsive Design** — Works on mobile, tablet, desktop
-- ⚡ **Fast Semantic Search** — PostgreSQL pgvector for intelligent queries
+- 🔍 **Interactive Anime Search** — Full-text + semantic search by description
+- 📊 **250+ Anime Database** — Stored locally with vector embeddings
+- 🤖 **AI Recommendations** — Claude analyzes preferences and ranks recommendations
+- 💬 **Smart Chat Interface** — Claude with database-first search + real-time web search
+- 🌐 **Web Search Integration** — SerpAPI for trending anime & news (saves quota smartly)
+- ⚡ **Fast Semantic Search** — PostgreSQL pgvector for intelligent similarity queries
+- 📱 **Responsive Design** — Works on mobile, tablet, desktop (frontend coming soon)
 
 ---
 
@@ -25,8 +26,10 @@ A full-stack web application for discovering, searching, and getting AI-powered 
 | **Frontend** | React 18 + TypeScript + Tailwind CSS (Vercel) |
 | **Backend** | Python FastAPI (Railway) |
 | **Database** | PostgreSQL + pgvector (Railway) |
-| **AI** | Claude API (Anthropic) |
-| **Data** | AniList API |
+| **AI Chat** | Claude Haiku via OpenRouter (cost-effective) |
+| **Web Search** | SerpAPI (Google Search) + DuckDuckGo fallback |
+| **Embeddings** | sentence-transformers (local, 384-dim vectors) |
+| **Data Source** | AniList GraphQL API |
 
 ---
 
@@ -70,20 +73,25 @@ npm run dev  # Runs on http://localhost:5173
 ## API Endpoints
 
 ### Anime
-- `GET /api/anime` — List anime (paginated, sortable)
-- `GET /api/anime/{id}` — Get single anime details
-- `GET /api/anime/stats/count` — Total anime count
+- `GET /api/anime` — List anime (paginated, sortable by rating/year)
+- `GET /api/anime/{id}` — Get single anime details + trailer
 
 ### Search (Phase 2)
-- `GET /api/anime/search?q=...` — Full-text search
-- `POST /api/anime/semantic-search` — Semantic search by description
-
-### Stats (Phase 2)
-- `GET /api/stats` — Dashboard statistics
+- `GET /api/search?q=...&genres=...&year_min=...` — Full-text search with filters
+- `POST /api/search/semantic?query_text=...` — Semantic search (AI-powered similarity)
 
 ### Recommendations (Phase 2)
-- `POST /api/recommend` — AI recommendations based on preferences
-- `POST /api/search-and-summarize` — Get latest news about anime
+- `POST /api/recommend` — Claude analyzes preferences and ranks anime
+
+### Chat (Phase 4) ⭐ NEW
+- `POST /api/chat` — Claude chatbot with smart search
+  - Database-first search (saves web quota)
+  - Optional web search for trending/current info
+  - Conversation history support
+  - Real-time SerpAPI integration
+
+### Stats
+- `GET /api/stats` — Dashboard statistics
 
 ---
 
@@ -138,33 +146,24 @@ anime-portal/
 
 ---
 
-## Development Phases
+## Development Status
 
-1. **Phase 1: Data Pipeline** ✅ In progress
-   - Fetch anime data from AniList
-   - Set up PostgreSQL + pgvector
-   - Basic API endpoints
+| Phase | Status | What's Done |
+|-------|--------|------------|
+| **Phase 1** | ✅ DONE | Data model + PostgreSQL + trailers |
+| **Phase 2** | ✅ DONE | Full-text search, semantic search, AI recommendations |
+| **Phase 4** | ✅ DONE | Chat endpoint, database-first search, SerpAPI web search |
+| **Phase 3** | ⏳ NEXT | React UI for chat + browse dashboard (3-4 days) |
+| **Deployment** | 📋 PLANNED | Railway (backend), Vercel (frontend) |
 
-2. **Phase 2: Backend Core** (Next)
-   - Search & filter endpoints
-   - Semantic search (pgvector)
-   - Dashboard stats
-   - Claude AI agent
+### What's Working Right Now
 
-3. **Phase 3: Frontend** (Week 2)
-   - React app structure
-   - Pages & components
-   - API integration
-
-4. **Phase 4: Design Polish** (Week 2)
-   - Tailwind styling
-   - Mobile responsive
-   - Micro-interactions
-
-5. **Phase 5: Deploy** (Week 3)
-   - Railway (backend)
-   - Vercel (frontend)
-   - Portfolio framing
+**Backend (100% functional):**
+- 250 anime in PostgreSQL with vector embeddings
+- 3 search types: full-text, semantic, AI recommendations
+- Smart chat with database-first + optional web search
+- Conversation history support
+- Free tier SerpAPI (250 searches/month)
 
 ---
 
@@ -172,8 +171,17 @@ anime-portal/
 
 ### Backend (.env)
 ```
+# Database
 DATABASE_URL=postgres://user:pass@localhost:5432/anime_db
-CLAUDE_API_KEY=sk-ant-...
+
+# Claude API (via OpenRouter - cheaper alternative)
+OPENROUTER_API_KEY=sk-or-v1-...
+MODEL_NAME=anthropic/claude-haiku-5.5
+
+# Web Search (SerpAPI - 250 free searches/month)
+SERPAPI_KEY=your_serpapi_key_here
+
+# Server
 PORT=8000
 ENVIRONMENT=development
 ```

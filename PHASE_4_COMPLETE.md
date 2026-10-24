@@ -32,46 +32,69 @@ Response:
 
 ---
 
-## Architecture
+## Smart Search Architecture
 
 ```
 User Message
     ↓
 Chat Route /api/chat
     ↓
-Claude Agent (chat_with_claude)
-    ├─ Detect search keywords
-    ├─ Extract search term from natural language
-    ├─ Query anime database
-    └─ Augment message with results
-    ↓
-Claude API (OpenRouter)
-    ↓
-Return answer with database info
+Claude Agent (SMART PRIORITIZED SEARCH)
+    │
+    ├─ STEP 1: Try Database Search First
+    │   └─ Find anime in our 250+ collection
+    │       (SAVES WEB SEARCH QUOTA)
+    │
+    ├─ STEP 2: If DB has results → Use them
+    │   └─ No web search needed
+    │
+    ├─ STEP 3: If NO DB results + User wants trending/current info
+    │   └─ Only THEN search web via SerpAPI
+    │
+    └─ STEP 4: Combine both results
+        └─ Claude sees all available info
+            ↓
+        Claude API (OpenRouter/Haiku)
+            ↓
+        Return intelligent answer
 ```
+
+**Quota Optimization:**
+- Free tier: 250 searches/month (8/day)
+- Database-first strategy = most web searches avoided
+- Only ~20-30 web searches/month needed in practice
+- Budget lasts entire month
 
 ---
 
 ## Key Features
 
-✅ **Database Augmentation**
-- Searches anime DB for matching titles
-- Embeds results in user message
-- Claude sees real data, not hallucinations
+✅ **Smart Database-First Search**
+- Searches anime DB first (saves web quota)
+- Only uses web search when needed (trending/current info)
+- Combination search for best results
 
-✅ **Natural Language Search**
+✅ **Real-Time Web Search**
+- SerpAPI integration for Google Search results
+- Fallback to mock data if quota exceeded
+- Only ~20-30 web searches/month needed in practice
+
+✅ **Natural Language Processing**
 - Handles: "like X", "similar to X", "for X", "about X"
-- Strips punctuation and phrase cleanup
-- Works with full sentences
+- Detects trending queries: "trending", "recent", "news", etc.
+- Strips punctuation and cleanup
+- Works with full sentences and questions
 
 ✅ **Conversation Support**
-- Previous messages as context
+- Full message history for context
 - Follow-up questions work smoothly
 - System message primes Claude for database awareness
 
-✅ **Error Handling**
+✅ **Smart Fallbacks**
 - Graceful fallback if no database results
-- Claude explains when using general knowledge vs. database
+- Mock trending data if SerpAPI unavailable
+- Claude explains when using database vs. general knowledge
+- Suggests web search when appropriate
 
 ---
 
