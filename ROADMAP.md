@@ -120,7 +120,37 @@ curl -X POST "http://localhost:8000/api/chat" \
 
 ---
 
-## Phase 3: Frontend (Chat UI) 🎨
+## Phase 5 (Next): Go Microservice 🚀 (Showcase Go Skills)
+
+### Goal
+Add Go microservice for search optimization + show multi-language architecture
+
+### What to Build
+- Go service for concurrent search (DB + Web in parallel)
+- Docker container + docker-compose
+- Communicate with Python FastAPI via HTTP
+- Performance optimization layer
+
+### Why
+- ✅ Showcase Go expertise on CV
+- ✅ Show microservices architecture
+- ✅ Demonstrate DevOps/Docker knowledge
+- ✅ Real performance improvement
+- ✅ FASTER to implement (2-3 days)
+
+### Implementation
+```
+go-search/
+├── main.go           (service entry)
+├── handlers/         (API endpoints)
+├── services/         (search logic)
+├── Dockerfile
+└── go.mod
+```
+
+---
+
+## Phase 3: Frontend (Chat UI) 🎨 (AFTER Phase 5)
 
 ### Goal
 Build React interface for the chatbot
@@ -213,43 +243,6 @@ frontend/
 
 ---
 
-## Phase 5 (Optional): Go Microservice 🚀 (Showcase Go Skills)
-
-### Goal
-Add Go microservice for search optimization + show multi-language architecture
-
-### What to Build
-- Go service for concurrent search (DB + Web in parallel)
-- Docker container + docker-compose
-- Communicate with Python FastAPI via HTTP
-- Performance optimization layer
-
-### Why
-- ✅ Showcase Go expertise on CV
-- ✅ Show microservices architecture
-- ✅ Demonstrate DevOps/Docker knowledge
-- ✅ Real performance improvement
-
-### Implementation
-```
-go-search/
-├── main.go           (service entry)
-├── handlers/         (API endpoints)
-├── services/         (search logic)
-├── Dockerfile
-└── go.mod
-```
-
-### Deployment
-```
-docker-compose.yml
-├── python-backend (FastAPI)
-├── go-search (microservice)
-├── postgres
-└── redis (cache)
-```
-
----
 
 ## Phase 6: Deployment 🌍
 
@@ -261,12 +254,16 @@ docker-compose.yml
 
 ---
 
-## Timeline
+## Timeline (Optimized Order)
 
-- **Phase 3 (Frontend):** 3-4 days
-- **Phase 4 (Done!):** ✅ Complete
-- **Phase 5 (Go, optional):** 2-3 days
-- **Phase 6 (Deploy):** 1 day
+- **Phase 4 (Chat + Web Search):** ✅ COMPLETE
+- **Phase 5 (Go Microservice):** ⏳ NEXT - 2-3 days
+  - Reason: Faster, completes backend before frontend
+  - Get performance optimization done first
+- **Phase 3 (React UI):** AFTER Phase 5 - 3-4 days
+  - Build on fully optimized, complete backend
+  - No backend changes needed mid-development
+- **Phase 6 (Deploy):** FINAL - 1 day
 
 ---
 
