@@ -46,12 +46,16 @@ async def chat_with_claude(messages: list[dict]) -> str:
     search_keywords = ["search", "find", "recommend", "suggest", "like", "similar", "what anime", "compare", "good"]
     needs_search = any(keyword in user_message for keyword in search_keywords)
 
+    # Detect if user wants current/trending info (needs web search)
+    web_keywords = ["trending", "current", "recent", "latest", "airing", "news", "review", "upcoming", "popular now", "this season", "popular in", "most popular", "top anime", "2024", "2025", "2026"]
+    needs_web_search = any(keyword in user_message for keyword in web_keywords)
+
     augmented_content = messages[-1]["content"]
 
-    if needs_search:
+    if needs_search or needs_web_search:
         # Extract potential search term
         search_term = user_message
-        for phrase in ["like ", "similar to ", "for ", "about "]:
+        for phrase in ["like ", "similar to ", "for ", "about ", "trending ", "recent ", "about "]:
             if phrase in search_term:
                 search_term = search_term.split(phrase)[-1]
                 break
@@ -61,7 +65,7 @@ async def chat_with_claude(messages: list[dict]) -> str:
 
         # Search database if we have a reasonable search term
         db_results = []
-        if search_term and len(search_term) > 1:
+        if needs_search and search_term and len(search_term) > 1:
             db_results = await search_anime_db(search_term, limit=3)
 
         if db_results:
@@ -70,7 +74,20 @@ async def chat_with_claude(messages: list[dict]) -> str:
                 results_text += f"• {anime['title']} (★{anime['rating']}/10, {anime['year']}, {', '.join(anime['genres'])})\n"
                 results_text += f"  {anime['plot']}\n"
 
-            augmented_content += results_text + "\nUse these results when answering the user's question."
+            augmented_content += results_text + "\nUse these database results when answering the user's question."
+
+        # Web search for trending/current info
+        if needs_web_search and search_term and len(search_term) > 1:
+            web_results = await search_web(f"{search_term} anime", limit=3)
+
+            if web_results:
+                web_text = "\n[Web Search Results - Current Info]\n"
+                for result in web_results:
+                    web_text += f"• {result['title']}\n"
+                    web_text += f"  {result['snippet']}\n"
+                    web_text += f"  {result['url']}\n"
+
+                augmented_content += web_text + "\nInclude this current information in your answer."
 
     # Update message with augmented content
     augmented_messages[-1]["content"] = augmented_content
