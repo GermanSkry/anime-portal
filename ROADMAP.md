@@ -1,12 +1,13 @@
 # Anime Portal: Complete Roadmap
 
-## Current Status: Phase 2 ✅ COMPLETE
+## Current Status: Phase 4 ✅ COMPLETE
 
 **What we have:**
 - 250 anime in PostgreSQL with vectors
-- Full-text search endpoint
-- Semantic search endpoint  
+- Full-text search + semantic search endpoints
 - AI recommendations endpoint
+- **Smart chat with database-first + SerpAPI web search** ⭐
+- Real-time trending anime info
 - All tested and working
 
 ---
@@ -212,19 +213,75 @@ frontend/
 
 ---
 
-## After Phase 3: Deployment 🚀
+## Phase 5 (Optional): Go Microservice 🚀 (Showcase Go Skills)
 
-- Frontend: Vercel (auto-deploy from main)
-- Backend: Railway or Heroku
-- Database: Managed PostgreSQL
-- Web search: SerpAPI credits ($10/month)
+### Goal
+Add Go microservice for search optimization + show multi-language architecture
+
+### What to Build
+- Go service for concurrent search (DB + Web in parallel)
+- Docker container + docker-compose
+- Communicate with Python FastAPI via HTTP
+- Performance optimization layer
+
+### Why
+- ✅ Showcase Go expertise on CV
+- ✅ Show microservices architecture
+- ✅ Demonstrate DevOps/Docker knowledge
+- ✅ Real performance improvement
+
+### Implementation
+```
+go-search/
+├── main.go           (service entry)
+├── handlers/         (API endpoints)
+├── services/         (search logic)
+├── Dockerfile
+└── go.mod
+```
+
+### Deployment
+```
+docker-compose.yml
+├── python-backend (FastAPI)
+├── go-search (microservice)
+├── postgres
+└── redis (cache)
+```
 
 ---
 
-## Key URLs When Done
+## Phase 6: Deployment 🌍
 
-- **App:** `https://anime-portal.vercel.app`
-- **API:** `https://anime-api.railway.app`
-- **GitHub:** Already public for portfolio
+- Frontend: Vercel (auto-deploy)
+- Backend: Railway (Python FastAPI + Go service)
+- Database: PostgreSQL managed
+- Cache: Redis (optional, for Phase 5)
+- Web search: SerpAPI ($0 free tier)
+
+---
+
+## Timeline
+
+- **Phase 3 (Frontend):** 3-4 days
+- **Phase 4 (Done!):** ✅ Complete
+- **Phase 5 (Go, optional):** 2-3 days
+- **Phase 6 (Deploy):** 1 day
+
+---
+
+## Portfolio Impact
+
+✅ Phase 1-4: Full-stack (Python + React + DB + AI)  
+✅ Phase 5: Multi-language (+ Go)  
+✅ Phase 6: DevOps (Docker, deployment)  
+
+**Result:** Professional portfolio showing:**
+- Backend API design (FastAPI)
+- Frontend development (React)
+- Database architecture (PostgreSQL + pgvector)
+- AI integration (Claude + SerpAPI)
+- Microservices (Go)
+- DevOps (Docker, deployment)
 
 This is portfolio gold. 🎯
