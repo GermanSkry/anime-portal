@@ -120,40 +120,88 @@ curl -X POST "http://localhost:8000/api/chat" \
 
 ---
 
-## Phase 5 (Next): Go Microservice 🚀 (Showcase Go Skills)
+## Phase 5: Go Microservice + Caching + Monitoring 🚀 (3-4 days)
 
 ### Goal
-Add Go microservice for search optimization + show multi-language architecture
+Production-ready Go microservice with caching, monitoring, and error tracking
 
 ### What to Build
-- Go service for concurrent search (DB + Web in parallel)
-- Docker container + docker-compose
-- Communicate with Python FastAPI via HTTP
-- Performance optimization layer
 
-### Why
-- ✅ Showcase Go expertise on CV
-- ✅ Show microservices architecture
-- ✅ Demonstrate DevOps/Docker knowledge
-- ✅ Real performance improvement
-- ✅ FASTER to implement (2-3 days)
-
-### Implementation
+**Part A: Go Microservice (2-3 days)**
 ```
 go-search/
-├── main.go           (service entry)
-├── handlers/         (API endpoints)
-├── services/         (search logic)
+├── main.go                (service entry)
+├── handlers/search.go     (API endpoints)
+├── cache/redis.go         (NEW - caching layer)
+├── db/history.go          (NEW - search history)
+├── monitoring/sentry.go   (NEW - error tracking)
+├── docker-compose.yml
 ├── Dockerfile
 └── go.mod
 ```
+
+**Part B: Monitoring (1 day)**
+- Sentry: Capture backend errors (Python + Go)
+- PostHog: Track user events + analytics
+- Structured logging
+- Performance metrics
+
+### Features
+
+**1. Redis Caching Layer**
+```
+Query → Check Cache → 
+  ✅ Found? Return cached (instant)
+  ❌ Miss? Call SerpAPI → Cache → Return
+
+Result: Save 60-70% SerpAPI quota!
+```
+
+**2. Search History**
+```
+Log: {query, results, timestamp, api_calls}
+Benefits:
+- Analytics dashboard
+- Avoid duplicate searches
+- Track user behavior
+- Trending queries detection
+```
+
+**3. Error Tracking (Sentry)**
+```
+❌ Exception in search?
+   → Sentry captures automatically
+   → Alert on dashboard
+   → Error grouping + trends
+```
+
+**4. Analytics (PostHog)**
+```
+- User search behavior
+- API performance
+- Cache hit rates
+- Feature usage tracking
+```
+
+### Why This is Professional
+- ✅ Production-ready architecture
+- ✅ Shows DevOps maturity
+- ✅ Error handling culture
+- ✅ Data-driven optimization
+- ✅ Monitoring from day 1
 
 ---
 
 ## Phase 3: Frontend (Chat UI) 🎨 (AFTER Phase 5)
 
 ### Goal
-Build React interface for the chatbot
+Build React interface for the chatbot with PostHog tracking
+
+### Add Monitoring to Frontend
+- PostHog events: chat sent, search performed, recommendations clicked
+- Performance metrics: response times
+- User behavior tracking
+- Funnel analysis
 
 ### Features
 
@@ -244,41 +292,97 @@ frontend/
 ---
 
 
-## Phase 6: Deployment 🌍
+## Phase 6: Deployment + Monitoring 🌍
 
-- Frontend: Vercel (auto-deploy)
-- Backend: Railway (Python FastAPI + Go service)
-- Database: PostgreSQL managed
-- Cache: Redis (optional, for Phase 5)
-- Web search: SerpAPI ($0 free tier)
+### Deploy Services
+- **Frontend:** Vercel (auto-deploy from main)
+- **Backend:** Railway (Python FastAPI)
+- **Go Service:** Railway (microservice)
+- **Database:** PostgreSQL managed
+- **Cache:** Redis (in-memory cache)
+- **Web Search:** SerpAPI ($0 free tier)
+
+### Monitoring Live
+- **Sentry:** Error tracking + alerts
+  - Capture exceptions from Python + Go
+  - Performance monitoring
+  - Deployment tracking
+  
+- **PostHog:** User analytics
+  - User behavior funnels
+  - Feature usage metrics
+  - Event tracking
+  - Session recording (optional)
+
+### Dashboards
+- Sentry: Error trends, performance
+- PostHog: User analytics, engagement
+- Railway: Service health, logs
+- Redis: Cache hit rates, memory usage
 
 ---
 
 ## Timeline (Optimized Order)
 
 - **Phase 4 (Chat + Web Search):** ✅ COMPLETE
-- **Phase 5 (Go Microservice):** ⏳ NEXT - 2-3 days
-  - Reason: Faster, completes backend before frontend
-  - Get performance optimization done first
+- **Phase 5 (Go + Caching + Monitoring):** ⏳ NEXT - 3-4 days
+  - Go microservice (2-3 days)
+  - Redis caching (save 60-70% quota)
+  - Sentry + PostHog (monitoring)
+  - Production-ready backend
 - **Phase 3 (React UI):** AFTER Phase 5 - 3-4 days
-  - Build on fully optimized, complete backend
-  - No backend changes needed mid-development
-- **Phase 6 (Deploy):** FINAL - 1 day
+  - Build on fully optimized backend
+  - PostHog tracking in frontend
+  - No backend changes needed
+- **Phase 6 (Deploy + Monitor):** FINAL - 1 day
+  - Railway (Python + Go)
+  - Vercel (React)
+  - Sentry + PostHog dashboards live
 
 ---
 
 ## Portfolio Impact
 
-✅ Phase 1-4: Full-stack (Python + React + DB + AI)  
-✅ Phase 5: Multi-language (+ Go)  
-✅ Phase 6: DevOps (Docker, deployment)  
+### What You'll Show
 
-**Result:** Professional portfolio showing:**
-- Backend API design (FastAPI)
-- Frontend development (React)
-- Database architecture (PostgreSQL + pgvector)
-- AI integration (Claude + SerpAPI)
-- Microservices (Go)
-- DevOps (Docker, deployment)
+✅ **Phase 1-4:** Full-stack AI application  
+✅ **Phase 5:** Production-ready backend with monitoring  
+✅ **Phase 6:** Professional DevOps + observability  
 
-This is portfolio gold. 🎯
+### Impressive Skills on Display
+
+**Backend:**
+- FastAPI (Python) + Go microservices
+- PostgreSQL with pgvector (AI embeddings)
+- Redis caching layer
+- Docker orchestration
+- API design patterns
+
+**Frontend:**
+- React 18 + TypeScript
+- Real-time chat UI
+- Performance optimization
+- Analytics integration
+
+**AI/ML:**
+- Claude API integration
+- Web search (SerpAPI)
+- Semantic search with embeddings
+- Recommendation system
+
+**DevOps/Monitoring:**
+- Docker + docker-compose
+- Multi-service orchestration
+- Sentry error tracking
+- PostHog analytics
+- Production deployment
+- Monitoring dashboards
+
+**This is professional portfolio gold.** 🎯
+
+Recruiters will see:
+- Full-stack capability ✅
+- Production-mindset (monitoring from day 1) ✅
+- Multi-language backend ✅
+- AI integration experience ✅
+- DevOps maturity ✅
