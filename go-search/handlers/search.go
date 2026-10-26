@@ -10,24 +10,21 @@ import (
 
 	"anime-search-service/cache"
 	"anime-search-service/db"
+	"anime-search-service/services"
 
 	"github.com/getsentry/sentry-go"
 	"github.com/gin-gonic/gin"
 )
 
 type SearchHandlers struct {
-	cache  *cache.RedisCache
-	db     *db.Connection
+	cache    *cache.RedisCache
+	db       *db.Connection
+	serpapi  *services.SerpAPIClient
+	analytics *services.PostHogClient
 }
 
 type SearchRequest struct {
 	Query string `json:"query" binding:"required"`
-}
-
-type SearchResult struct {
-	Title   string `json:"title"`
-	URL     string `json:"url"`
-	Snippet string `json:"snippet"`
 }
 
 type ConcurrentSearchRequest struct {
@@ -35,14 +32,16 @@ type ConcurrentSearchRequest struct {
 }
 
 type ConcurrentSearchResult struct {
-	Web   []SearchResult `json:"web"`
+	Web   []services.SearchResult `json:"web"`
 	Anime []map[string]interface{} `json:"anime"`
 }
 
 func NewSearchHandlers(redisClient *cache.RedisCache, dbConn *db.Connection) *SearchHandlers {
 	return &SearchHandlers{
-		cache: redisClient,
-		db:    dbConn,
+		cache:     redisClient,
+		db:        dbConn,
+		serpapi:   services.NewSerpAPIClient(),
+		analytics: services.NewPostHogClient(),
 	}
 }
 
@@ -58,27 +57,33 @@ func (sh *SearchHandlers) SearchWeb(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Check cache first
+	startTime := time.Now()
 	cacheKey := fmt.Sprintf("web_search:%s", req.Query)
-	var results []SearchResult
+
+	// Check cache first
+	var results []services.SearchResult
 	if err := sh.cache.Get(ctx, cacheKey, &results); err == nil {
-		c.JSON(http.StatusOK, results)
+		sh.analytics.TrackCacheHit(req.Query)
 		sh.db.LogSearch(req.Query, len(results), "web_cached")
+		c.JSON(http.StatusOK, results)
 		return
 	}
 
-	// Cache miss - fetch from SerpAPI (or fallback)
-	// In production, call actual SerpAPI here
-	results = []SearchResult{
-		{
-			Title:   "Trending Anime 2026",
-			URL:     "https://myanimelist.net",
-			Snippet: "Top trending anime of 2026",
-		},
+	// Cache miss - fetch from SerpAPI
+	sh.analytics.TrackCacheMiss(req.Query)
+
+	results, err := sh.serpapi.Search(req.Query, 3)
+	if err != nil {
+		sentry.CaptureException(err)
+		sh.analytics.TrackAPICall("serpapi", false, time.Since(startTime))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to search web"})
+		return
 	}
 
 	// Store in cache for 1 hour
 	sh.cache.Set(ctx, cacheKey, results, 1*time.Hour)
+	sh.analytics.TrackAPICall("serpapi", true, time.Since(startTime))
+	sh.analytics.TrackSearch(req.Query, len(results), "web", time.Since(startTime))
 	sh.db.LogSearch(req.Query, len(results), "web")
 
 	c.JSON(http.StatusOK, results)
@@ -160,7 +165,7 @@ func (sh *SearchHandlers) ConcurrentSearch(c *gin.Context) {
 		}
 		defer resp.Body.Close()
 
-		var results []map[string]interface{}
+		var results []services.SearchResult
 		body, _ := io.ReadAll(resp.Body)
 		json.Unmarshal(body, &results)
 		animeChan <- results
