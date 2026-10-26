@@ -12,6 +12,7 @@ import (
 	"anime-search-service/cache"
 	"anime-search-service/db"
 	"anime-search-service/services"
+	"anime-search-service/utils"
 
 	"github.com/gin-gonic/gin"
 )
@@ -57,9 +58,12 @@ func (sh *SearchHandlers) SearchWeb(c *gin.Context) {
 	defer cancel()
 
 	startTime := time.Now()
-	cacheKey := fmt.Sprintf("web_search:%s", req.Query)
+	// Normalize query for better cache hits
+	// "best anime 2026" and "anime best 2026" become same cache key
+	normalizedQuery := utils.NormalizeQuery(req.Query)
+	cacheKey := fmt.Sprintf("web_search:%s", normalizedQuery)
 
-	// Check cache first
+	// Check cache first (exact + normalized match)
 	var results []services.SearchResult
 	if err := sh.cache.Get(ctx, cacheKey, &results); err == nil {
 		sh.analytics.TrackCacheHit(req.Query)

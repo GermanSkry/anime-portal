@@ -86,3 +86,84 @@ func (rc *RedisCache) GetStats(ctx context.Context) (map[string]interface{}, err
 		"info": info,
 	}, nil
 }
+
+// StoreEmbedding stores a query embedding for semantic similarity
+func (rc *RedisCache) StoreEmbedding(ctx context.Context, query string, embedding []float32) error {
+	key := "embedding:" + query
+	data, err := json.Marshal(embedding)
+	if err != nil {
+		return err
+	}
+	// Store embeddings for 24 hours
+	return rc.client.Set(ctx, key, data, 24*time.Hour).Err()
+}
+
+// GetSimilarQueries finds queries with similar embeddings
+// Returns key of most similar query if similarity > threshold
+func (rc *RedisCache) GetSimilarQueries(ctx context.Context, embedding []float32, threshold float32) (string, error) {
+	// Get all embedding keys
+	keys, err := rc.client.Keys(ctx, "embedding:*").Result()
+	if err != nil || len(keys) == 0 {
+		return "", err
+	}
+
+	var bestMatch string
+	var bestSimilarity float32
+
+	// For each stored embedding, calculate similarity
+	for _, key := range keys {
+		data, err := rc.client.Get(ctx, key).Result()
+		if err != nil {
+			continue
+		}
+
+		var storedEmbedding []float32
+		if err := json.Unmarshal([]byte(data), &storedEmbedding); err != nil {
+			continue
+		}
+
+		// Calculate cosine similarity
+		similarity := cosineSimilarity(embedding, storedEmbedding)
+		if similarity > threshold && similarity > bestSimilarity {
+			bestMatch = key
+			bestSimilarity = similarity
+		}
+	}
+
+	return bestMatch, nil
+}
+
+// cosineSimilarity calculates similarity between vectors (0-1)
+func cosineSimilarity(a, b []float32) float32 {
+	if len(a) != len(b) {
+		return 0
+	}
+
+	var dotProduct float32
+	var magA float32
+	var magB float32
+
+	for i := range a {
+		dotProduct += a[i] * b[i]
+		magA += a[i] * a[i]
+		magB += b[i] * b[i]
+	}
+
+	if magA == 0 || magB == 0 {
+		return 0
+	}
+
+	return dotProduct / (sqrt(magA) * sqrt(magB))
+}
+
+// sqrt calculates square root
+func sqrt(x float32) float32 {
+	if x < 0 {
+		return 0
+	}
+	z := x
+	for i := 0; i < 10; i++ {
+		z = (z + x/z) / 2
+	}
+	return z
+}

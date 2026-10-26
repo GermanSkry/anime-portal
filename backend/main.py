@@ -34,7 +34,7 @@ posthog_region = os.getenv("POSTHOG_REGION", "us")
 posthog = Posthog(posthog_api_key, enabled=(posthog_api_key != ""), region=posthog_region)
 
 # Import routers
-from app.routes import anime, characters, stats, search, recommend, chat
+from app.routes import anime, characters, stats, search, recommend, chat, embeddings
 
 app = FastAPI(title="Anime Portal API", version="0.1.0")
 
@@ -56,6 +56,7 @@ async def root():
     return {"message": "Anime Portal API - Ready"}
 
 # Include routers (specific routes first, catch-all last)
+app.include_router(embeddings.router)
 app.include_router(chat.router)
 app.include_router(search.router)
 app.include_router(recommend.router)
