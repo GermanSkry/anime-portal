@@ -1,0 +1,83 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: anime_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: anime_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: anime_cache
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  python-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: anime_api
+    environment:
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/anime_db
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      SERPAPI_KEY: ${SERPAPI_KEY}
+      MODEL_NAME: anthropic/claude-haiku-5.5
+      PORT: 8000
+      ENVIRONMENT: development
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    command: python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  go-search:
+    build:
+      context: ./go-search
+      dockerfile: Dockerfile
+    container_name: anime_search
+    environment:
+      DATABASE_URL: postgres://postgres:password@postgres:5432/anime_db
+      REDIS_URL: redis://redis:6379
+      SENTRY_DSN: ${SENTRY_DSN}
+      POSTHOG_API_KEY: ${POSTHOG_API_KEY}
+      PORT: 8001
+      ENVIRONMENT: development
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./go-search:/app
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  default:
+    name: anime-network
