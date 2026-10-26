@@ -58,7 +58,9 @@ func (p *PostHogClient) CaptureEvent(distinctID string, event string, properties
 		return err
 	}
 
-	req, err := http.NewRequest("POST", "https://us.i.posthog.com/batch", bytes.NewBuffer(data))
+	// Use EU endpoint for EU region
+	posthogURL := "https://eu.i.posthog.com/batch"
+	req, err := http.NewRequest("POST", posthogURL, bytes.NewBuffer(data))
 	if err != nil {
 		return err
 	}
