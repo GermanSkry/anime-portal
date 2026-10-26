@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     model_name: str = os.getenv("MODEL_NAME", "anthropic/claude-3.5-sonnet")
     port: int = int(os.getenv("PORT", 8000))
     environment: str = os.getenv("ENVIRONMENT", "development")
+    posthog_api_key: str = os.getenv("POSTHOG_API_KEY", "")
+    posthog_region: str = os.getenv("POSTHOG_REGION", "us")
+    sentry_dsn: str = os.getenv("SENTRY_DSN", "")
 
     @field_validator("model_name")
     @classmethod

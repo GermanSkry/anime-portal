@@ -31,7 +31,13 @@ logging.basicConfig(
 # Initialize PostHog for analytics
 posthog_api_key = os.getenv("POSTHOG_API_KEY", "")
 posthog_region = os.getenv("POSTHOG_REGION", "us")
-posthog = Posthog(posthog_api_key, enabled=(posthog_api_key != ""), region=posthog_region)
+if posthog_api_key:
+    posthog = Posthog(
+        posthog_api_key,
+        host="https://eu.i.posthog.com" if posthog_region == "eu" else "https://us.i.posthog.com"
+    )
+else:
+    posthog = None
 
 # Import routers
 from app.routes import anime, characters, stats, search, recommend, chat, embeddings

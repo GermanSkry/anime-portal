@@ -72,6 +72,23 @@ func (sh *SearchHandlers) SearchWeb(c *gin.Context) {
 		return
 	}
 
+	// Try semantic similarity (Option 2)
+	// Get embedding for current query
+	embeddingClient := utils.NewEmbeddingClient("http://localhost:8000")
+	if embedding, err := embeddingClient.GetEmbedding(req.Query); err == nil {
+		// Search for semantically similar cached queries
+		if similarKey, err := sh.cache.GetSimilarQueries(ctx, embedding, 0.80); err == nil && similarKey != "" {
+			// Found semantic match! Extract original query and use cache
+			if err := sh.cache.Get(ctx, similarKey, &results); err == nil {
+				sh.analytics.TrackCacheHit(req.Query)
+				sh.db.LogSearch(req.Query, len(results), "web_semantic_cached")
+				log.Printf("Semantic cache hit: '%s' matched '%s'", req.Query, similarKey)
+				c.JSON(http.StatusOK, results)
+				return
+			}
+		}
+	}
+
 	// Cache miss - fetch from SerpAPI
 	sh.analytics.TrackCacheMiss(req.Query)
 
@@ -84,6 +101,18 @@ func (sh *SearchHandlers) SearchWeb(c *gin.Context) {
 
 	// Store in cache for 1 hour
 	sh.cache.Set(ctx, cacheKey, results, 1*time.Hour)
+
+	// Store embedding for semantic similarity matching (Option 2)
+	// Get embedding and cache it for future semantic matches
+	if embeddingClient := utils.NewEmbeddingClient("http://localhost:8000"); embeddingClient != nil {
+		if embedding, err := embeddingClient.GetEmbedding(req.Query); err == nil {
+			// Store embedding with normalized query key
+			embeddingKey := fmt.Sprintf("embedding:%s", normalizedQuery)
+			sh.cache.StoreEmbedding(ctx, normalizedQuery, embedding)
+			log.Printf("Stored embedding for '%s' (key: %s)", req.Query, embeddingKey)
+		}
+	}
+
 	sh.analytics.TrackAPICall("serpapi", true, time.Since(startTime))
 	sh.analytics.TrackSearch(req.Query, len(results), "web", time.Since(startTime))
 	sh.db.LogSearch(req.Query, len(results), "web")
