@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"time"
 
@@ -12,7 +13,6 @@ import (
 	"anime-search-service/db"
 	"anime-search-service/services"
 
-	"github.com/getsentry/sentry-go"
 	"github.com/gin-gonic/gin"
 )
 
@@ -49,7 +49,6 @@ func NewSearchHandlers(redisClient *cache.RedisCache, dbConn *db.Connection) *Se
 func (sh *SearchHandlers) SearchWeb(c *gin.Context) {
 	var req SearchRequest
 	if err := c.BindJSON(&req); err != nil {
-		sentry.CaptureException(err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
 	}
@@ -74,7 +73,6 @@ func (sh *SearchHandlers) SearchWeb(c *gin.Context) {
 
 	results, err := sh.serpapi.Search(req.Query, 3)
 	if err != nil {
-		sentry.CaptureException(err)
 		sh.analytics.TrackAPICall("serpapi", false, time.Since(startTime))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to search web"})
 		return
@@ -93,7 +91,6 @@ func (sh *SearchHandlers) SearchWeb(c *gin.Context) {
 func (sh *SearchHandlers) SearchAnime(c *gin.Context) {
 	var req SearchRequest
 	if err := c.BindJSON(&req); err != nil {
-		sentry.CaptureException(err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
 	}
@@ -102,7 +99,6 @@ func (sh *SearchHandlers) SearchAnime(c *gin.Context) {
 	pythonURL := "http://localhost:8000/api/search/semantic?query_text=" + req.Query + "&limit=3"
 	resp, err := http.Get(pythonURL)
 	if err != nil {
-		sentry.CaptureException(err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query anime database"})
 		return
 	}
@@ -121,7 +117,6 @@ func (sh *SearchHandlers) SearchAnime(c *gin.Context) {
 func (sh *SearchHandlers) ConcurrentSearch(c *gin.Context) {
 	var req ConcurrentSearchRequest
 	if err := c.BindJSON(&req); err != nil {
-		sentry.CaptureException(err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
 	}
@@ -173,8 +168,8 @@ func (sh *SearchHandlers) ConcurrentSearch(c *gin.Context) {
 			result.Web = web
 		case anime := <-animeChan:
 			result.Anime = anime
-		case err := <-errChan:
-			sentry.CaptureException(err)
+		case <-errChan:
+			// error logged but continue
 		case <-ctx.Done():
 			c.JSON(http.StatusRequestTimeout, gin.H{"error": "Search timeout"})
 			return
@@ -190,11 +185,14 @@ func (sh *SearchHandlers) GetSearchHistory(c *gin.Context) {
 	limit := 50
 	history, err := sh.db.GetSearchHistory(limit)
 	if err != nil {
-		sentry.CaptureException(err)
+		log.Printf("GetSearchHistory error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch history"})
 		return
 	}
 
+	if history == nil {
+		history = make([]map[string]interface{}, 0)
+	}
 	c.JSON(http.StatusOK, history)
 }
 

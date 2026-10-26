@@ -4,10 +4,8 @@ CREATE TABLE IF NOT EXISTS search_history (
     id SERIAL PRIMARY KEY,
     query VARCHAR(255) NOT NULL,
     result_count INTEGER,
-    query_type VARCHAR(50),  -- 'web', 'anime', 'concurrent', 'web_cached'
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_created_at (created_at),
-    INDEX idx_query (query)
+    query_type VARCHAR(50),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create index for analytics queries
