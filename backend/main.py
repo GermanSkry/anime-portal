@@ -3,8 +3,23 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import os
 from dotenv import load_dotenv
+import sentry_sdk
+from posthog import Posthog
 
 load_dotenv()
+
+# Initialize Sentry for error tracking
+sentry_sdk.init(
+    dsn=os.getenv("SENTRY_DSN", ""),
+    environment=os.getenv("ENVIRONMENT", "development"),
+    traces_sample_rate=1.0,
+    integrations=[],
+)
+
+# Initialize PostHog for analytics
+posthog_api_key = os.getenv("POSTHOG_API_KEY", "")
+posthog_region = os.getenv("POSTHOG_REGION", "us")
+posthog = Posthog(posthog_api_key, enabled=(posthog_api_key != ""), region=posthog_region)
 
 # Import routers
 from app.routes import anime, characters, stats, search, recommend, chat

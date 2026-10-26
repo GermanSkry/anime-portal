@@ -16,14 +16,17 @@ import (
 
 func main() {
 	// Initialize Sentry for error tracking
-	if err := sentry.Init(sentry.ClientOptions{
-		Dsn:     os.Getenv("SENTRY_DSN"),
-		Environment: os.Getenv("ENVIRONMENT"),
-		TracesSampleRate: 1.0,
-	}); err != nil {
-		log.Printf("Sentry initialization failed: %v", err)
+	sentryDSN := os.Getenv("SENTRY_DSN")
+	if sentryDSN != "" {
+		if err := sentry.Init(sentry.ClientOptions{
+			Dsn:              sentryDSN,
+			Environment:      os.Getenv("ENVIRONMENT"),
+			TracesSampleRate: 1.0,
+		}); err != nil {
+			log.Printf("Sentry initialization failed: %v", err)
+		}
+		defer sentry.Flush(2 * 1000)
 	}
-	defer sentry.Flush(2 * 1000)
 
 	// Initialize Redis cache
 	redisClient := cache.NewRedisClient(os.Getenv("REDIS_URL"))
