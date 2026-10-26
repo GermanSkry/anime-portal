@@ -2,18 +2,30 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import os
+import logging
 from dotenv import load_dotenv
 import sentry_sdk
+from sentry_sdk.integrations.logging import LoggingIntegration
 from posthog import Posthog
 
 load_dotenv()
 
-# Initialize Sentry for error tracking
-sentry_sdk.init(
-    dsn=os.getenv("SENTRY_DSN", ""),
-    environment=os.getenv("ENVIRONMENT", "development"),
-    traces_sample_rate=1.0,
-    integrations=[],
+# Initialize Sentry for error tracking with logging integration
+sentry_dsn = os.getenv("SENTRY_DSN", "")
+if sentry_dsn:
+    sentry_sdk.init(
+        dsn=sentry_dsn,
+        environment=os.getenv("ENVIRONMENT", "development"),
+        traces_sample_rate=1.0,
+        integrations=[
+            LoggingIntegration(capture_sentry_logs=True),
+        ],
+    )
+
+# Configure logging to send to Sentry
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
 # Initialize PostHog for analytics
