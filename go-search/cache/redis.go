@@ -99,20 +99,35 @@ func (rc *RedisCache) StoreEmbedding(ctx context.Context, query string, embeddin
 }
 
 // GetSimilarQueries finds queries with similar embeddings
-// Returns key of most similar query if similarity > threshold
+// Returns cache key of most similar query if similarity > threshold
 func (rc *RedisCache) GetSimilarQueries(ctx context.Context, embedding []float32, threshold float32) (string, error) {
-	// Get all embedding keys
-	keys, err := rc.client.Keys(ctx, "embedding:*").Result()
-	if err != nil || len(keys) == 0 {
-		return "", err
+	// Scan for embedding keys (Redis SCAN is better than KEYS for production)
+	var cursor uint64
+	var keys []string
+
+	for {
+		var newKeys []string
+		var err error
+		newKeys, cursor, err = rc.client.Scan(ctx, cursor, "embedding:*", 100).Result()
+		if err != nil {
+			return "", err
+		}
+		keys = append(keys, newKeys...)
+		if cursor == 0 {
+			break
+		}
+	}
+
+	if len(keys) == 0 {
+		return "", nil
 	}
 
 	var bestMatch string
 	var bestSimilarity float32
 
 	// For each stored embedding, calculate similarity
-	for _, key := range keys {
-		data, err := rc.client.Get(ctx, key).Result()
+	for _, embeddingKey := range keys {
+		data, err := rc.client.Get(ctx, embeddingKey).Result()
 		if err != nil {
 			continue
 		}
@@ -125,7 +140,11 @@ func (rc *RedisCache) GetSimilarQueries(ctx context.Context, embedding []float32
 		// Calculate cosine similarity
 		similarity := cosineSimilarity(embedding, storedEmbedding)
 		if similarity > threshold && similarity > bestSimilarity {
-			bestMatch = key
+			// Extract normalized query from embedding key
+			// Key format: "embedding:normalized_query"
+			normalizedQuery := embeddingKey[10:] // Remove "embedding:" prefix
+			// Convert back to cache key for the search results
+			bestMatch = "web_search:" + normalizedQuery
 			bestSimilarity = similarity
 		}
 	}

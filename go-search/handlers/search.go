@@ -77,7 +77,9 @@ func (sh *SearchHandlers) SearchWeb(c *gin.Context) {
 	embeddingClient := utils.NewEmbeddingClient("http://localhost:8000")
 	if embedding, err := embeddingClient.GetEmbedding(req.Query); err == nil {
 		// Search for semantically similar cached queries
-		if similarKey, err := sh.cache.GetSimilarQueries(ctx, embedding, 0.80); err == nil && similarKey != "" {
+		// 0.78 threshold: balances cache hits vs false positives
+		// Avoids opposite meanings (e.g., "best" vs "worst" is 0.82 but different)
+		if similarKey, err := sh.cache.GetSimilarQueries(ctx, embedding, 0.78); err == nil && similarKey != "" {
 			// Found semantic match! Extract original query and use cache
 			if err := sh.cache.Get(ctx, similarKey, &results); err == nil {
 				sh.analytics.TrackCacheHit(req.Query)
