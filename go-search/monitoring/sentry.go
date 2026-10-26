@@ -17,8 +17,8 @@ func CaptureError(err error) {
 }
 
 // CaptureMessage captures a message
-func CaptureMessage(msg string, level sentry.Level) {
-	sentry.CaptureMessage(msg, level)
+func CaptureMessage(msg string) {
+	sentry.CaptureMessage(msg)
 }
 
 // CapturePanic recovers from panic and reports it

@@ -33,7 +33,7 @@ type ConcurrentSearchRequest struct {
 
 type ConcurrentSearchResult struct {
 	Web   []services.SearchResult `json:"web"`
-	Anime []map[string]interface{} `json:"anime"`
+	Anime []services.SearchResult `json:"anime"`
 }
 
 func NewSearchHandlers(redisClient *cache.RedisCache, dbConn *db.Connection) *SearchHandlers {
@@ -98,9 +98,6 @@ func (sh *SearchHandlers) SearchAnime(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
 	// Call Python FastAPI backend
 	pythonURL := "http://localhost:8000/api/search/semantic?query_text=" + req.Query + "&limit=3"
 	resp, err := http.Get(pythonURL)
@@ -133,16 +130,14 @@ func (sh *SearchHandlers) ConcurrentSearch(c *gin.Context) {
 	defer cancel()
 
 	result := ConcurrentSearchResult{}
-
-	// Run both searches concurrently
-	webChan := make(chan []SearchResult)
-	animeChan := make(chan []map[string]interface{})
+	webChan := make(chan []services.SearchResult)
+	animeChan := make(chan []services.SearchResult)
 	errChan := make(chan error)
 
 	// Web search
 	go func() {
 		cacheKey := fmt.Sprintf("web_search:%s", req.Query)
-		var results []SearchResult
+		var results []services.SearchResult
 
 		if err := sh.cache.Get(ctx, cacheKey, &results); err == nil {
 			webChan <- results
@@ -150,9 +145,9 @@ func (sh *SearchHandlers) ConcurrentSearch(c *gin.Context) {
 		}
 
 		// Fetch and cache
-		results = []SearchResult{{Title: "Result", URL: "http://example.com", Snippet: "Search result"}}
-		sh.cache.Set(ctx, cacheKey, results, 1*time.Hour)
-		webChan <- results
+		searchResults, _ := sh.serpapi.Search(req.Query, 3)
+		sh.cache.Set(ctx, cacheKey, searchResults, 1*time.Hour)
+		webChan <- searchResults
 	}()
 
 	// Anime search
@@ -207,7 +202,6 @@ func (sh *SearchHandlers) GetSearchHistory(c *gin.Context) {
 func (sh *SearchHandlers) GetSearchStats(c *gin.Context) {
 	stats, err := sh.db.GetSearchStats()
 	if err != nil {
-		sentry.CaptureException(err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch stats"})
 		return
 	}
