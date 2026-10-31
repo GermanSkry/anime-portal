@@ -1,0 +1,218 @@
+.title-page {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.title-hero {
+  margin-bottom: 48px;
+}
+
+.title-hero h1 {
+  font-size: 32px;
+  font-weight: 700;
+  margin-bottom: 32px;
+  color: var(--text-primary);
+}
+
+.title-content {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 32px;
+  margin-bottom: 48px;
+}
+
+.title-poster {
+  aspect-ratio: 3/4;
+  background-size: cover;
+  background-position: center;
+  background-color: #d946ef;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.title-info {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  position: relative;
+}
+
+.title-info > .info-badge.rating {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: rgba(217, 70, 239, 0.9);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: white;
+  font-weight: 700;
+  font-size: 16px;
+  margin: 0;
+}
+
+.info-section {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.info-section:last-child {
+  border-bottom: none;
+}
+
+.info-value {
+  font-size: 16px;
+  color: var(--text-secondary);
+  line-height: 1.8;
+  margin: 0;
+}
+
+.title-trailer {
+  margin-bottom: 48px;
+}
+
+.trailer-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  color: var(--text-primary);
+  position: relative;
+  padding-left: 12px;
+}
+
+.trailer-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, var(--accent-start), var(--accent-end));
+  border-radius: 2px;
+}
+
+.trailer-video {
+  width: 100%;
+  aspect-ratio: 16/9;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.similar-section {
+  margin-bottom: 48px;
+}
+
+.similar-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  color: var(--text-primary);
+  position: relative;
+  padding-left: 12px;
+}
+
+.similar-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, var(--accent-start), var(--accent-end));
+  border-radius: 2px;
+}
+
+.similar-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+.similar-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 200ms ease-out;
+}
+
+.similar-card:hover {
+  border-color: rgba(217, 70, 239, 0.5);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(217, 70, 239, 0.15);
+}
+
+.similar-poster {
+  width: 100%;
+  aspect-ratio: 3/4;
+  background-size: cover;
+  background-position: center;
+  background-color: #d946ef;
+  position: relative;
+  overflow: hidden;
+}
+
+.similar-poster::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 30%, rgba(15, 15, 15, 0.8) 100%);
+}
+
+.similar-info {
+  padding: 10px;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.similar-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.similar-meta {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.ai-chat-bubble {
+  position: fixed;
+  bottom: 32px;
+  right: 32px;
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, var(--accent-start), var(--accent-end));
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(217, 70, 239, 0.3);
+  transition: all 200ms ease-out;
+  font-size: 28px;
+  border: none;
+  z-index: 50;
+}
+
+.ai-chat-bubble:hover {
+  transform: scale(1.1);
+  box-shadow: 0 12px 32px rgba(217, 70, 239, 0.4);
+}

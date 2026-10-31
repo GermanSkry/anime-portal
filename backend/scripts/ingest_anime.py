@@ -60,7 +60,11 @@ async def ingest_anime():
         async with conn.cursor() as cur:
             # Initialize DB schema
             print("🔧 Initializing database schema...")
-            await cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
+            try:
+                await cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
+            except Exception as e:
+                print(f"  ⚠️  pgvector extension not available, continuing without it")
+                await conn.rollback()
 
             # Main anime table (enhanced with trailers - Phase 1.5)
             await cur.execute("""
@@ -140,12 +144,12 @@ async def ingest_anime():
                 );
             """)
 
-            # Embeddings for semantic search
+            # Embeddings for semantic search (simplified without pgvector)
             await cur.execute("""
                 CREATE TABLE IF NOT EXISTS embeddings (
                     id SERIAL PRIMARY KEY,
                     anime_id INTEGER UNIQUE NOT NULL REFERENCES anime(id) ON DELETE CASCADE,
-                    plot_embedding vector(384),
+                    plot_embedding TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
             """)

@@ -18,7 +18,7 @@ if sentry_dsn:
         environment=os.getenv("ENVIRONMENT", "development"),
         traces_sample_rate=1.0,
         integrations=[
-            LoggingIntegration(capture_sentry_logs=True),
+            LoggingIntegration(level=logging.INFO, event_level=logging.ERROR),
         ],
     )
 

@@ -1,0 +1,1615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anime Portal Design Preview</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-base: #0f0f0f;
+            --bg-surface: #1a1a1a;
+            --bg-elevated: #242424;
+            --border: rgba(255, 255, 255, 0.08);
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.7);
+            --text-muted: rgba(255, 255, 255, 0.5);
+            --accent-start: #d946ef;
+            --accent-end: #06b6d4;
+        }
+
+        body {
+            background: var(--bg-base);
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+            line-height: 1.5;
+        }
+
+        .tab-switcher {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 12px;
+        }
+
+        .tab-btn {
+            padding: 8px 16px;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 200ms ease-out;
+            position: relative;
+        }
+
+        .tab-btn.active {
+            color: var(--text-primary);
+        }
+
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -12px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--accent-start), var(--accent-end));
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .view {
+            display: none;
+        }
+
+        .view.active {
+            display: block;
+        }
+
+        /* ===== CHAT VIEW ===== */
+        .chat-container {
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            gap: 16px;
+            height: 700px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .sidebar {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            overflow-y: auto;
+        }
+
+        .sidebar-title {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .chat-item {
+            padding: 12px;
+            margin-bottom: 8px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-left: 2px solid transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 200ms ease-out;
+            font-size: 13px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .chat-item:hover {
+            background: var(--bg-base);
+            border-color: rgba(217, 70, 239, 0.3);
+            border-left-color: var(--accent-start);
+        }
+
+        .chat-main {
+            background: linear-gradient(135deg, rgba(217, 70, 239, 0.05) 0%, rgba(6, 182, 212, 0.05) 100%);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .poster-bg {
+            position: absolute;
+            top: 0;
+            right: -100px;
+            width: 400px;
+            height: 100%;
+            background: linear-gradient(135deg, #d946ef, #06b6d4);
+            border-radius: 50%;
+            opacity: 0.08;
+            filter: blur(60px);
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .message {
+            margin-bottom: 16px;
+            animation: slideIn 300ms ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            text-align: right;
+        }
+
+        .message.user .bubble {
+            background: linear-gradient(135deg, rgba(217, 70, 239, 0.2), rgba(217, 70, 239, 0.1));
+            border: 1px solid rgba(217, 70, 239, 0.3);
+            margin-left: auto;
+            margin-right: 0;
+        }
+
+        .message.assistant .bubble {
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            margin-right: auto;
+        }
+
+        .bubble {
+            display: inline-block;
+            max-width: 85%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.5;
+            color: var(--text-primary);
+            word-wrap: break-word;
+        }
+
+        .chat-input-area {
+            display: flex;
+            gap: 12px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 12px 16px;
+            background: var(--bg-elevated);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 14px;
+            transition: all 200ms ease-out;
+            font-family: inherit;
+        }
+
+        .chat-input:focus {
+            outline: none;
+            border-color: rgba(217, 70, 239, 0.5);
+            background: rgba(217, 70, 239, 0.07);
+            box-shadow: 0 0 8px rgba(217, 70, 239, 0.12);
+        }
+
+        .send-btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, var(--accent-start), var(--accent-end));
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 200ms ease-out;
+            font-size: 14px;
+        }
+
+        .send-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(217, 70, 239, 0.3);
+        }
+
+        /* ===== BROWSE VIEW ===== */
+        .browse-wrapper {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .browse-sidebar {
+            display: none;
+        }
+
+        .browse-content {
+            width: 100%;
+        }
+
+        .browse-hero {
+            margin-bottom: 48px;
+            text-align: left;
+        }
+
+        .browse-hero h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, var(--accent-start), var(--accent-end));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .search-bar {
+            display: flex;
+            gap: 12px;
+            border: 2px solid var(--accent-start);
+            border-radius: 12px;
+            padding: 14px;
+            background: transparent;
+            margin-bottom: 40px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 10px 14px;
+            background: var(--bg-surface);
+            border: none;
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 14px;
+            transition: all 200ms ease-out;
+        }
+
+        .search-input:focus {
+            outline: none;
+            background: rgba(217, 70, 239, 0.07);
+            border-color: rgba(217, 70, 239, 0.5);
+            box-shadow: 0 0 8px rgba(217, 70, 239, 0.12);
+        }
+
+        .search-btn {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--accent-start), var(--accent-end));
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 200ms ease-out;
+            white-space: nowrap;
+        }
+
+        .search-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 12px rgba(217, 70, 239, 0.3);
+        }
+
+        .browse-section {
+            margin-bottom: 56px;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 28px;
+            color: var(--text-primary);
+            position: relative;
+            padding-left: 12px;
+        }
+
+        .section-title::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, var(--accent-start), var(--accent-end));
+            border-radius: 2px;
+        }
+
+        .browse-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 14px;
+        }
+
+        .browse-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 200ms ease-out;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .browse-card:hover {
+            border-color: rgba(217, 70, 239, 0.5);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(217, 70, 239, 0.15);
+        }
+
+        .browse-poster {
+            width: 100%;
+            aspect-ratio: 3/4;
+            background: linear-gradient(135deg, #d946ef, #06b6d4);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .browse-poster::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, transparent 30%, rgba(15, 15, 15, 0.8) 100%);
+        }
+
+        .browse-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 40px;
+            height: 40px;
+            background: rgba(217, 70, 239, 0.9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .browse-info {
+            padding: 10px;
+            position: relative;
+            z-index: 1;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+        }
+
+        .browse-title {
+            font-size: 14px;
+            font-weight: 700;
+            line-height: 1.2;
+            margin-bottom: 4px;
+        }
+
+        .browse-meta {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        /* ===== DASHBOARD VIEW ===== */
+        .dashboard-header {
+            margin-bottom: 32px;
+            text-align: center;
+        }
+
+        .dashboard-title {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, var(--accent-start), var(--accent-end));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .dashboard-subtitle {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-bottom: 0;
+            display: none;
+        }
+
+        .filter-bar {
+            display: flex;
+            gap: 16px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 48px;
+            position: relative;
+        }
+
+        .filter-tab {
+            padding: 10px 20px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 200ms ease-out;
+            white-space: nowrap;
+            position: relative;
+        }
+
+        .filter-tab::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: transparent;
+            border-radius: 1px;
+            transition: background 200ms;
+        }
+
+        .filter-tab:hover::after {
+            background: linear-gradient(90deg, var(--accent-start), transparent);
+        }
+
+        .filter-tab.active {
+            background: rgba(217, 70, 239, 0.1);
+            border-color: rgba(217, 70, 239, 0.4);
+            color: var(--text-primary);
+        }
+
+        .filter-tab.active::after {
+            background: linear-gradient(90deg, var(--accent-start), var(--accent-end));
+        }
+
+        .filter-popup {
+            position: absolute;
+            top: calc(100% + 12px);
+            left: 0;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            display: none;
+            z-index: 10;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            max-width: 400px;
+            min-width: 320px;
+        }
+
+        .filter-popup.open {
+            display: block;
+        }
+
+        .popup-title {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            margin-bottom: 14px;
+        }
+
+        .range-inputs {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .range-input-group {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .range-input-group:first-of-type {
+            order: 1;
+        }
+
+        .range-input-group:first-of-type::before {
+            content: 'From';
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            white-space: nowrap;
+            margin-right: 4px;
+        }
+
+        .range-input-group:last-of-type {
+            order: 3;
+        }
+
+        .range-input-group:last-of-type::before {
+            content: 'To';
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            white-space: nowrap;
+            margin-right: 4px;
+        }
+
+        .range-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-bottom: 0;
+            display: none;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            font-weight: 600;
+        }
+
+        .range-input::after {
+            content: '|';
+            position: absolute;
+            margin-left: 4px;
+            color: var(--text-muted);
+        }
+
+        .range-inputs::after {
+            content: '';
+            display: none;
+        }
+
+        .range-input {
+            flex: 1;
+            min-width: 70px;
+            padding: 8px 10px;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid var(--border);
+            border-radius: 0;
+            color: var(--text-primary);
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 200ms ease-out;
+            text-align: center;
+            position: relative;
+        }
+
+        .range-input:focus {
+            outline: none;
+            border-bottom-color: rgba(217, 70, 239, 0.8);
+            background: transparent;
+            box-shadow: 0 2px 4px rgba(217, 70, 239, 0.15);
+        }
+
+        .genre-list {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px 12px;
+        }
+
+        .genre-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+        }
+
+        .genre-item input {
+            cursor: pointer;
+            accent-color: #d946ef;
+        }
+
+        .genre-item label {
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .studio-dropdown {
+            width: 100%;
+            padding: 10px 12px;
+            background: var(--bg-base);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 200ms ease-out;
+        }
+
+        .studio-dropdown:focus {
+            outline: none;
+            border-color: rgba(217, 70, 239, 0.5);
+            background: rgba(217, 70, 239, 0.07);
+            box-shadow: 0 0 6px rgba(217, 70, 239, 0.1);
+        }
+
+        .results-header {
+            margin-bottom: 32px;
+        }
+
+        .results-count {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 10px;
+        }
+
+        .results-page-info {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .results-list {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            margin-bottom: 48px;
+        }
+
+        .result-item {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 20px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 200ms ease-out;
+            cursor: pointer;
+        }
+
+        .result-item:hover {
+            border-color: rgba(217, 70, 239, 0.5);
+            box-shadow: 0 8px 16px rgba(217, 70, 239, 0.1);
+        }
+
+        .result-item-poster {
+            width: 100%;
+            height: 280px;
+            background: linear-gradient(135deg, #d946ef, #06b6d4);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .result-item-poster::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, transparent 0%, rgba(15, 15, 15, 0.6) 100%);
+        }
+
+        .result-item-content {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .result-item-header {
+            margin-bottom: 0;
+        }
+
+        .result-item-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            line-height: 1.3;
+        }
+
+        .result-item-meta {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .result-item-badge {
+            font-size: 13px;
+            padding: 8px 16px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .result-item-badge.rating {
+            background: transparent;
+            border-color: rgba(6, 182, 212, 0.3);
+            color: #06b6d4;
+            font-weight: 600;
+        }
+
+        .result-item-synopsis {
+            font-size: 15px;
+            line-height: 1.7;
+            color: var(--text-secondary);
+            display: -webkit-box;
+            -webkit-line-clamp: 4;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            margin-top: 32px;
+        }
+
+        .pagination-btn {
+            padding: 8px 16px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 200ms ease-out;
+        }
+
+        .pagination-btn:hover:not(:disabled) {
+            border-color: rgba(217, 70, 239, 0.5);
+            background: rgba(217, 70, 239, 0.05);
+        }
+
+        .pagination-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination-info {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* ===== TITLE PAGE ===== */
+        .title-page {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .title-hero {
+            margin-bottom: 48px;
+        }
+
+        .title-hero h1 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 32px;
+            color: var(--text-primary);
+        }
+
+        .title-content {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 32px;
+            margin-bottom: 48px;
+        }
+
+        .title-poster {
+            aspect-ratio: 3/4;
+            background: linear-gradient(135deg, #d946ef, #06b6d4);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .title-info {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .info-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .info-badge {
+            padding: 8px 16px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+            white-space: nowrap;
+        }
+
+        .info-badge.rating {
+            border-color: rgba(6, 182, 212, 0.3);
+            color: #06b6d4;
+        }
+
+        .info-section {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .info-section:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+            margin-bottom: 0;
+            display: none;
+        }
+
+        .info-value {
+            font-size: 16px;
+            color: var(--text-secondary);
+            line-height: 1.8;
+        }
+
+        .info-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .tag {
+            padding: 4px 10px;
+            background: rgba(217, 70, 239, 0.15);
+            border: 1px solid rgba(217, 70, 239, 0.3);
+            border-radius: 6px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .title-trailer {
+            margin-bottom: 48px;
+        }
+
+        .trailer-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: var(--text-primary);
+            position: relative;
+            padding-left: 12px;
+        }
+
+        .trailer-title::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, var(--accent-start), var(--accent-end));
+            border-radius: 2px;
+        }
+
+        .trailer-video {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .similar-section {
+            margin-bottom: 48px;
+        }
+
+        .similar-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: var(--text-primary);
+            position: relative;
+            padding-left: 12px;
+        }
+
+        .similar-title::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, var(--accent-start), var(--accent-end));
+            border-radius: 2px;
+        }
+
+        .similar-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 14px;
+        }
+
+        .similar-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 200ms ease-out;
+        }
+
+        .similar-card:hover {
+            border-color: rgba(217, 70, 239, 0.5);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(217, 70, 239, 0.15);
+        }
+
+        .similar-poster {
+            width: 100%;
+            aspect-ratio: 3/4;
+            background: linear-gradient(135deg, #d946ef, #06b6d4);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .similar-poster::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, transparent 30%, rgba(15, 15, 15, 0.8) 100%);
+        }
+
+        .similar-info {
+            padding: 10px;
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+        }
+
+        .similar-name {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .similar-meta {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .ai-chat-bubble {
+            position: fixed;
+            bottom: 32px;
+            right: 32px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--accent-start), var(--accent-end));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 8px 24px rgba(217, 70, 239, 0.3);
+            transition: all 200ms ease-out;
+            font-size: 28px;
+            border: none;
+            z-index: 50;
+        }
+
+        .ai-chat-bubble:hover {
+            transform: scale(1.1);
+            box-shadow: 0 12px 32px rgba(217, 70, 239, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 style="font-size: 28px; margin-bottom: 24px; background: linear-gradient(135deg, #d946ef, #06b6d4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Anime Portal</h1>
+
+        <div class="tab-switcher">
+            <button class="tab-btn active" onclick="switchTab('chat')">💬 Chat</button>
+            <button class="tab-btn" onclick="switchTab('browse')">🎬 Browse</button>
+            <button class="tab-btn" onclick="switchTab('dashboard')">🔍 Explore</button>
+            <button class="tab-btn" onclick="switchTab('title')">📖 Title</button>
+        </div>
+
+        <!-- CHAT -->
+        <div id="chat" class="view active">
+            <div class="chat-container">
+                <div class="sidebar">
+                    <div class="sidebar-title">Recent</div>
+                    <div class="chat-item">Best action anime</div>
+                    <div class="chat-item">Like Toradora</div>
+                    <div class="chat-item">Dark fantasy recs</div>
+                </div>
+                <div class="chat-main">
+                    <div class="poster-bg"></div>
+                    <div class="chat-messages">
+                        <div class="message assistant">
+                            <div class="bubble">👋 What anime are you looking for?</div>
+                        </div>
+                        <div class="message user">
+                            <div class="bubble">Good action shows</div>
+                        </div>
+                        <div class="message assistant">
+                            <div class="bubble">Try Attack on Titan, Demon Slayer, or My Hero Academia 🎬</div>
+                        </div>
+                    </div>
+                    <div class="chat-input-area">
+                        <input type="text" class="chat-input" placeholder="Ask...">
+                        <button class="send-btn">Send</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BROWSE -->
+        <div id="browse" class="view">
+            <div class="browse-wrapper">
+                <div class="browse-sidebar">
+                    <div class="browse-sidebar-title">Categories</div>
+                    <div class="browse-sidebar-item">Action</div>
+                    <div class="browse-sidebar-item">Romance</div>
+                    <div class="browse-sidebar-item">Comedy</div>
+                    <div class="browse-sidebar-item">Horror</div>
+                </div>
+
+                <div class="browse-content">
+                    <div class="browse-hero">
+                        <h1>Discover Anime</h1>
+                        <div class="search-bar">
+                            <input type="text" class="search-input" placeholder="Search anime...">
+                            <button class="search-btn">Search</button>
+                        </div>
+                    </div>
+
+                <!-- Best Rated -->
+                <div class="browse-section">
+                    <h2 class="section-title">⭐ Best (Highest Rated)</h2>
+                    <div class="browse-grid">
+                        <div class="browse-card">
+                            <div class="browse-poster"></div>
+                            <div class="browse-badge">9.0</div>
+                            <div class="browse-info">
+                                <div class="browse-title">Steins;Gate</div>
+                                <div class="browse-meta">2011 • Sci-Fi</div>
+                            </div>
+                        </div>
+                        <div class="browse-card">
+                            <div class="browse-poster" style="background: linear-gradient(135deg, #06b6d4, #0891b2);"></div>
+                            <div class="browse-badge" style="background: rgba(6, 182, 212, 0.9);">8.9</div>
+                            <div class="browse-info">
+                                <div class="browse-title">Attack on Titan</div>
+                                <div class="browse-meta">2013 • Action</div>
+                            </div>
+                        </div>
+                        <div class="browse-card">
+                            <div class="browse-poster" style="background: linear-gradient(135deg, #d946ef, #ec4899);"></div>
+                            <div class="browse-badge" style="background: rgba(217, 70, 239, 0.9);">8.8</div>
+                            <div class="browse-info">
+                                <div class="browse-title">Vinland Saga</div>
+                                <div class="browse-meta">2019 • Historical</div>
+                            </div>
+                        </div>
+                        <div class="browse-card">
+                            <div class="browse-poster" style="background: linear-gradient(135deg, #14b8a6, #06b6d4);"></div>
+                            <div class="browse-badge" style="background: rgba(20, 184, 166, 0.9);">8.7</div>
+                            <div class="browse-info">
+                                <div class="browse-title">Natsume Yuujinchou</div>
+                                <div class="browse-meta">2008 • Supernatural</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- New Releases -->
+                <div class="browse-section">
+                    <h2 class="section-title">🆕 New (Recent Releases)</h2>
+                    <div class="browse-grid">
+                        <div class="browse-card">
+                            <div class="browse-poster" style="background: linear-gradient(135deg, #f59e0b, #d946ef);"></div>
+                            <div class="browse-badge">8.6</div>
+                            <div class="browse-info">
+                                <div class="browse-title">Jujutsu Kaisen S4</div>
+                                <div class="browse-meta">2026 • Action</div>
+                            </div>
+                        </div>
+                        <div class="browse-card">
+                            <div class="browse-poster" style="background: linear-gradient(135deg, #14b8a6, #06b6d4);"></div>
+                            <div class="browse-badge" style="background: rgba(20, 184, 166, 0.9);">8.3</div>
+                            <div class="browse-info">
+                                <div class="browse-title">Wind Breaker</div>
+                                <div class="browse-meta">2026 • School</div>
+                            </div>
+                        </div>
+                        <div class="browse-card">
+                            <div class="browse-poster" style="background: linear-gradient(135deg, #ec4899, #06b6d4);"></div>
+                            <div class="browse-badge" style="background: rgba(236, 72, 153, 0.9);">8.5</div>
+                            <div class="browse-info">
+                                <div class="browse-title">Oshi no Ko S2</div>
+                                <div class="browse-meta">2025 • Drama</div>
+                            </div>
+                        </div>
+                        <div class="browse-card">
+                            <div class="browse-poster" style="background: linear-gradient(135deg, #a855f7, #d946ef);"></div>
+                            <div class="browse-badge" style="background: rgba(168, 85, 247, 0.9);">8.4</div>
+                            <div class="browse-info">
+                                <div class="browse-title">Solo Leveling</div>
+                                <div class="browse-meta">2024 • Action</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Anime -->
+                <div class="browse-section">
+                    <h2 class="section-title">⚔️ Action</h2>
+                    <div class="browse-grid">
+                        <div class="browse-card">
+                            <div class="browse-poster"></div>
+                            <div class="browse-badge">8.7</div>
+                            <div class="browse-info">
+                                <div class="browse-title">Demon Slayer</div>
+                                <div class="browse-meta">2019 • Action</div>
+                            </div>
+                        </div>
+                        <div class="browse-card">
+                            <div class="browse-poster" style="background: linear-gradient(135deg, #a855f7, #d946ef);"></div>
+                            <div class="browse-badge" style="background: rgba(168, 85, 247, 0.9);">8.4</div>
+                            <div class="browse-info">
+                                <div class="browse-title">My Hero Academia</div>
+                                <div class="browse-meta">2016 • Action</div>
+                            </div>
+                        </div>
+                        <div class="browse-card">
+                            <div class="browse-poster" style="background: linear-gradient(135deg, #f59e0b, #ec4899);"></div>
+                            <div class="browse-badge" style="background: rgba(245, 158, 11, 0.9);">8.4</div>
+                            <div class="browse-info">
+                                <div class="browse-title">Mob Psycho 100</div>
+                                <div class="browse-meta">2016 • Comedy</div>
+                            </div>
+                        </div>
+                        <div class="browse-card">
+                            <div class="browse-poster" style="background: linear-gradient(135deg, #06b6d4, #0891b2);"></div>
+                            <div class="browse-badge" style="background: rgba(6, 182, 212, 0.9);">8.6</div>
+                            <div class="browse-info">
+                                <div class="browse-title">Chainsaw Man</div>
+                                <div class="browse-meta">2022 • Action</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Romance Anime -->
+                <div class="browse-section">
+                    <h2 class="section-title">💕 Romance</h2>
+                    <div class="browse-grid">
+                        <div class="browse-card">
+                            <div class="browse-poster" style="background: linear-gradient(135deg, #ec4899, #d946ef);"></div>
+                            <div class="browse-badge" style="background: rgba(236, 72, 153, 0.9);">7.9</div>
+                            <div class="browse-info">
+                                <div class="browse-title">Toradora!</div>
+                                <div class="browse-meta">2008 • Romance</div>
+                            </div>
+                        </div>
+                        <div class="browse-card">
+                            <div class="browse-poster" style="background: linear-gradient(135deg, #06b6d4, #14b8a6);"></div>
+                            <div class="browse-badge" style="background: rgba(20, 184, 166, 0.9);">7.8</div>
+                            <div class="browse-info">
+                                <div class="browse-title">Fruits Basket</div>
+                                <div class="browse-meta">2019 • Romance</div>
+                            </div>
+                        </div>
+                        <div class="browse-card">
+                            <div class="browse-poster" style="background: linear-gradient(135deg, #d946ef, #06b6d4);"></div>
+                            <div class="browse-badge">8.2</div>
+                            <div class="browse-info">
+                                <div class="browse-title">Kaguya-sama</div>
+                                <div class="browse-meta">2019 • Comedy</div>
+                            </div>
+                        </div>
+                        <div class="browse-card">
+                            <div class="browse-poster" style="background: linear-gradient(135deg, #f59e0b, #d946ef);"></div>
+                            <div class="browse-badge" style="background: rgba(245, 158, 11, 0.9);">7.9</div>
+                            <div class="browse-info">
+                                <div class="browse-title">Tonikaku Kawaii</div>
+                                <div class="browse-meta">2020 • Romance</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Horror Anime -->
+                <div class="browse-section">
+                    <h2 class="section-title">👻 Horror</h2>
+                    <div class="browse-grid">
+                        <div class="browse-card">
+                            <div class="browse-poster" style="background: linear-gradient(135deg, #1f2937, #374151);"></div>
+                            <div class="browse-badge" style="background: rgba(31, 41, 55, 0.9);">8.5</div>
+                            <div class="browse-info">
+                                <div class="browse-title">Jujutsu Kaisen</div>
+                                <div class="browse-meta">2020 • Dark</div>
+                            </div>
+                        </div>
+                        <div class="browse-card">
+                            <div class="browse-poster" style="background: linear-gradient(135deg, #7c2d12, #92400e);"></div>
+                            <div class="browse-badge" style="background: rgba(124, 45, 18, 0.9);">7.8</div>
+                            <div class="browse-info">
+                                <div class="browse-title">Tokyo Ghoul</div>
+                                <div class="browse-meta">2014 • Horror</div>
+                            </div>
+                        </div>
+                        <div class="browse-card">
+                            <div class="browse-poster" style="background: linear-gradient(135deg, #4c1d95, #6d28d9);"></div>
+                            <div class="browse-badge" style="background: rgba(76, 29, 149, 0.9);">7.5</div>
+                            <div class="browse-info">
+                                <div class="browse-title">Another</div>
+                                <div class="browse-meta">2012 • Horror</div>
+                            </div>
+                        </div>
+                        <div class="browse-card">
+                            <div class="browse-poster" style="background: linear-gradient(135deg, #ec4899, #d946ef);"></div>
+                            <div class="browse-badge" style="background: rgba(236, 72, 153, 0.9);">7.7</div>
+                            <div class="browse-info">
+                                <div class="browse-title">Parasyte</div>
+                                <div class="browse-meta">2014 • Horror</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DASHBOARD -->
+        <div id="dashboard" class="view">
+            <div class="browse-wrapper">
+                <div class="browse-sidebar">
+                    <div class="browse-sidebar-title">Quick Filters</div>
+                    <div class="browse-sidebar-item">Trending Now</div>
+                    <div class="browse-sidebar-item">Top Rated</div>
+                    <div class="browse-sidebar-item">Recently Added</div>
+                    <div class="browse-sidebar-item">Completed</div>
+                </div>
+
+                <div class="browse-content">
+                    <div class="dashboard-header">
+                        <h2 class="dashboard-title">Anime Explorer</h2>
+                        <p class="dashboard-subtitle">Click filters to customize your search</p>
+                    </div>
+
+                <!-- Filter Bar with Popups -->
+                <div class="filter-bar">
+                <button class="filter-tab active" onclick="openFilter('rating')">⭐ Rating</button>
+                <button class="filter-tab" onclick="openFilter('genre')">🎬 Genre</button>
+                <button class="filter-tab" onclick="openFilter('year')">📅 Year</button>
+                <button class="filter-tab" onclick="openFilter('studio')">🎨 Studio</button>
+
+                <!-- Rating Popup -->
+                <div class="filter-popup open" id="rating-popup">
+                    <div class="popup-title">Rating Range</div>
+                    <div class="range-inputs">
+                        <div class="range-input-group">
+                            <label class="range-label">From</label>
+                            <input type="number" class="range-input" min="1" max="10" step="0.5" value="6.0">
+                        </div>
+                        <div class="range-input-group">
+                            <label class="range-label">To</label>
+                            <input type="number" class="range-input" min="1" max="10" step="0.5" value="10.0">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Genre Popup -->
+                <div class="filter-popup" id="genre-popup">
+                    <div class="popup-title">Select Genres</div>
+                    <div class="genre-list">
+                        <div class="genre-item">
+                            <input type="checkbox" id="g-action">
+                            <label for="g-action">Action</label>
+                        </div>
+                        <div class="genre-item">
+                            <input type="checkbox" id="g-romance" checked>
+                            <label for="g-romance">Romance</label>
+                        </div>
+                        <div class="genre-item">
+                            <input type="checkbox" id="g-comedy">
+                            <label for="g-comedy">Comedy</label>
+                        </div>
+                        <div class="genre-item">
+                            <input type="checkbox" id="g-dark">
+                            <label for="g-dark">Dark Fantasy</label>
+                        </div>
+                        <div class="genre-item">
+                            <input type="checkbox" id="g-sci">
+                            <label for="g-sci">Sci-Fi</label>
+                        </div>
+                        <div class="genre-item">
+                            <input type="checkbox" id="g-drama">
+                            <label for="g-drama">Drama</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Year Popup -->
+                <div class="filter-popup" id="year-popup">
+                    <div class="popup-title">Year Range</div>
+                    <div class="range-inputs">
+                        <div class="range-input-group">
+                            <label class="range-label">From</label>
+                            <input type="number" class="range-input" min="1970" max="2026" value="1990">
+                        </div>
+                        <div class="range-input-group">
+                            <label class="range-label">To</label>
+                            <input type="number" class="range-input" min="1970" max="2026" value="2012">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Studio Popup -->
+                <div class="filter-popup" id="studio-popup">
+                    <div class="popup-title">Select Studio</div>
+                    <select class="studio-dropdown">
+                        <option>Any Studio</option>
+                        <option selected>Madhouse</option>
+                        <option>Studio Ghibli</option>
+                        <option>MAPPA</option>
+                        <option>Wit Studio</option>
+                        <option>Kyoto Animation</option>
+                        <option>A-1 Pictures</option>
+                        <option>ufotable</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Results -->
+            <div class="results-header">
+                <div class="results-count">47 Results Found</div>
+                <div class="results-page-info">Page 1 of 10 (5 per page)</div>
+            </div>
+
+            <div class="results-list">
+                <div class="result-item">
+                    <div class="result-item-poster"></div>
+                    <div class="result-item-content">
+                        <div class="result-item-header">
+                            <div class="result-item-title">Maison Ikkoku</div>
+                            <div class="result-item-meta">
+                                <span class="result-item-badge">1986</span>
+                                <span class="result-item-badge">Madhouse</span>
+                                <span class="result-item-badge rating">7.8★</span>
+                            </div>
+                            <div class="info-tags">
+                                <div class="tag">Romance</div>
+                                <div class="tag">Comedy</div>
+                                <div class="tag">Slice of Life</div>
+                            </div>
+                        </div>
+                        <div class="result-item-synopsis">A romantic comedy about a young man living in an old apartment complex who falls for the beautiful new building manager. Their relationship develops through hilarious misunderstandings and heartfelt moments, creating one of anime's most beloved romance stories.</div>
+                    </div>
+                </div>
+
+                <div class="result-item">
+                    <div class="result-item-poster" style="background: linear-gradient(135deg, #d946ef, #ec4899);"></div>
+                    <div class="result-item-content">
+                        <div class="result-item-header">
+                            <div class="result-item-title">Kimagure Orange Road</div>
+                            <div class="result-item-meta">
+                                <span class="result-item-badge">1987</span>
+                                <span class="result-item-badge">Madhouse</span>
+                                <span class="result-item-badge rating">7.2★</span>
+                            </div>
+                            <div class="info-tags">
+                                <div class="tag">Romance</div>
+                                <div class="tag">Shoujo</div>
+                                <div class="tag">School</div>
+                            </div>
+                        </div>
+                        <div class="result-item-synopsis">A classic shoujo romance following a high school girl caught in a love triangle. When a mysterious boy transfers to her school, she discovers he harbors supernatural powers and harbors a secret connection to her past.</div>
+                    </div>
+                </div>
+
+                <div class="result-item">
+                    <div class="result-item-poster" style="background: linear-gradient(135deg, #06b6d4, #0891b2);"></div>
+                    <div class="result-item-content">
+                        <div class="result-item-header">
+                            <div class="result-item-title">Haibane Renmei</div>
+                            <div class="result-item-meta">
+                                <span class="result-item-badge">2002</span>
+                                <span class="result-item-badge">Madhouse</span>
+                                <span class="result-item-badge rating">7.9★</span>
+                            </div>
+                            <div class="info-tags">
+                                <div class="tag">Philosophical</div>
+                                <div class="tag">Supernatural</div>
+                                <div class="tag">Drama</div>
+                            </div>
+                        </div>
+                        <div class="result-item-synopsis">A mysterious and philosophical series about winged beings called Haibane who inhabit a walled world. As they uncover the truth about their existence and purpose, themes of redemption and acceptance unfold in a surreal, atmospheric setting.</div>
+                    </div>
+                </div>
+
+                <div class="result-item">
+                    <div class="result-item-poster" style="background: linear-gradient(135deg, #f59e0b, #d946ef);"></div>
+                    <div class="result-item-content">
+                        <div class="result-item-header">
+                            <div class="result-item-title">Natsume Yuujinchou</div>
+                            <div class="result-item-meta">
+                                <span class="result-item-badge">2008</span>
+                                <span class="result-item-badge">Madhouse</span>
+                                <span class="result-item-badge rating">7.6★</span>
+                            </div>
+                            <div class="info-tags">
+                                <div class="tag">Supernatural</div>
+                                <div class="tag">Slice of Life</div>
+                                <div class="tag">Friendship</div>
+                            </div>
+                        </div>
+                        <div class="result-item-synopsis">A touching series about a boy who can see yokai (supernatural creatures) and inherits a mysterious book. Through gentle encounters with various spirits, he helps them find peace while discovering the warmth of human connection and friendship.</div>
+                    </div>
+                </div>
+
+                <div class="result-item">
+                    <div class="result-item-poster" style="background: linear-gradient(135deg, #a855f7, #d946ef);"></div>
+                    <div class="result-item-content">
+                        <div class="result-item-header">
+                            <div class="result-item-title">Chihayafuru</div>
+                            <div class="result-item-meta">
+                                <span class="result-item-badge">2011</span>
+                                <span class="result-item-badge">Madhouse</span>
+                                <span class="result-item-badge rating">7.7★</span>
+                            </div>
+                            <div class="info-tags">
+                                <div class="tag">Sports</div>
+                                <div class="tag">Romance</div>
+                                <div class="tag">School</div>
+                            </div>
+                        </div>
+                        <div class="result-item-synopsis">An engaging sports-romance anime centered on competitive card poetry. A passionate girl revives her school's competitive poetry card club, uniting a team of dedicated players as they compete for national championships while exploring romance and personal growth.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            <div class="pagination">
+                <button class="pagination-btn" disabled>← Previous</button>
+                <span class="pagination-info">Page 1 of 10</span>
+                <button class="pagination-btn">Next →</button>
+            </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TITLE DETAIL PAGE -->
+        <div id="title" class="view">
+            <div class="title-page">
+                <div class="title-hero">
+                    <h1>Attack on Titan</h1>
+                </div>
+
+                <div class="title-content">
+                    <div class="title-poster"></div>
+                    <div class="title-info">
+                        <div class="info-meta">
+                            <div class="info-badge">2013</div>
+                            <div class="info-badge">Wit Studio</div>
+                            <div class="info-badge rating">8.9★</div>
+                        </div>
+                        <div class="info-tags">
+                            <div class="tag">Action</div>
+                            <div class="tag">Dark Fantasy</div>
+                            <div class="tag">Adventure</div>
+                        </div>
+                        <div class="info-section">
+                            <div class="info-value">Humanity has been decimated by the sudden appearance of colossal humanoid creatures called Titans. Little is known about where they came from, but the threat is so real that the remnants of humanity had to take refuge behind a massive wall. Eren Yeager witnesses the destruction of his hometown and the death of his mother, setting him on a path of vengeance to eliminate every last Titan.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="title-trailer">
+                    <div class="trailer-title">🎬 Official Trailer</div>
+                    <div class="trailer-video">YouTube Video Embed</div>
+                </div>
+
+                <div class="similar-section">
+                    <div class="similar-title">📽️ Similar Titles</div>
+                    <div class="similar-grid">
+                        <div class="similar-card">
+                            <div class="similar-poster"></div>
+                            <div class="similar-info">
+                                <div class="similar-name">Demon Slayer</div>
+                                <div class="similar-meta">2019 • Action</div>
+                            </div>
+                        </div>
+                        <div class="similar-card">
+                            <div class="similar-poster" style="background: linear-gradient(135deg, #06b6d4, #0891b2);"></div>
+                            <div class="similar-info">
+                                <div class="similar-name">My Hero Academia</div>
+                                <div class="similar-meta">2016 • Action</div>
+                            </div>
+                        </div>
+                        <div class="similar-card">
+                            <div class="similar-poster" style="background: linear-gradient(135deg, #a855f7, #d946ef);"></div>
+                            <div class="similar-info">
+                                <div class="similar-name">Vinland Saga</div>
+                                <div class="similar-meta">2019 • Adventure</div>
+                            </div>
+                        </div>
+                        <div class="similar-card">
+                            <div class="similar-poster" style="background: linear-gradient(135deg, #f59e0b, #ec4899);"></div>
+                            <div class="similar-info">
+                                <div class="similar-name">Jujutsu Kaisen</div>
+                                <div class="similar-meta">2020 • Dark</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="ai-chat-bubble" onclick="alert('Chat feature would open here')">💬</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tab) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(tab).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        function openFilter(filterName) {
+            const popup = document.getElementById(filterName + '-popup');
+            const tab = event.target;
+            const isOpen = popup.classList.contains('open');
+
+            // Close all popups and deactivate all tabs
+            document.querySelectorAll('.filter-popup').forEach(p => p.classList.remove('open'));
+            document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+
+            // Toggle: if already open, close it; otherwise open it
+            if (!isOpen) {
+                popup.classList.add('open');
+                tab.classList.add('active');
+            }
+        }
+    </script>
+</body>
+</html>

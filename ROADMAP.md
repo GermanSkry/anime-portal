@@ -1,5 +1,42 @@
 # Anime Portal: Complete Roadmap
 
+## Current Status: Phase 2 🚀 IN PROGRESS (UI/UX Polish)
+
+### Phase 2: UI/UX Polish & Feature Completion
+
+**Completed:**
+- ✅ Database descriptions (plot field) populated for all 250 anime
+- ✅ API returns synopsis for all endpoints
+- ✅ Explore page filtering (Rating, Genre, Year, Studio)
+- ✅ Filter popups styled as visible bubbles
+- ✅ Anime names displaying correctly across all pages
+- ✅ Studio data from database arrays
+- ✅ Image loading with fallback gradients
+
+**TODO:**
+- [ ] **Similar anime on Title page** — create backend endpoint to find similar anime (by genre, rating, year, studio) and wire up frontend
+- [ ] **Show applied filters in Explore** — display active filter badges/chips so users see what's filtered
+- [ ] **Add more genres in Browse page** — currently only shows "Action" category, expand to more (Comedy, Drama, Romance, etc.)
+- [ ] **Fix genres data consistency** — ensure all anime have proper genres populated from database
+- [ ] **Recent anime filtering** — check that Year filter + Rating filter work together on "Recent" section
+- [ ] **Trailers in database** — verify trailer_url is populated in database, display in Title page
+- [ ] **Web search integration** — check how web search works (currently appears non-functional)
+- [ ] **Chat on Title page** — replace placeholder button with functional chat component
+- [ ] **Chat history (session)** — keep message history in chat window during current session
+- [ ] **User chat history** — save/retrieve previous chats per user (identify by IP for now, improve later)
+- [ ] **Create Makefile** — add easy start commands for:
+  - Front-end dev server
+  - Backend server
+  - Database (PostgreSQL)
+  - Data population script (update_plots.py or ingest_anime.py)
+
+**Notes:**
+- Backend restart needed after code changes (due to hot-reload timing)
+- pgvector extension not available in current PostgreSQL setup (removed from schema)
+- Mock data fallback when database query fails in anime.py routes
+
+---
+
 ## Current Status: Phase 5 ✅ COMPLETE
 
 **Phase 4 Complete:**
