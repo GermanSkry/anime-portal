@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import './Title.css'
 import { animeAPI } from '../services/api'
+import ChatModal from '../components/ChatModal'
 
 // Helper to navigate to Explore with filters
 const navigateToExplore = (navigate, filterType, filterValue) => {
@@ -28,6 +29,7 @@ export default function Title() {
   const [title, setTitle] = useState(defaultTitle)
   const [similar, setSimilar] = useState([])
   const [loading, setLoading] = useState(true)
+  const [chatOpen, setChatOpen] = useState(false)
 
   useEffect(() => {
     const loadTitle = async () => {
@@ -146,9 +148,11 @@ export default function Title() {
         </div>
       </div>
 
-      <button className="ai-chat-bubble" onClick={() => alert('Chat feature would open here')}>
+      <button className="ai-chat-bubble" onClick={() => setChatOpen(true)}>
         💬
       </button>
+
+      <ChatModal isOpen={chatOpen} onClose={() => setChatOpen(false)} animeContext={title} />
     </div>
   )
 }

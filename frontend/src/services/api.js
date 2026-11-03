@@ -97,20 +97,31 @@ export const searchAPI = {
 
 // Chat API endpoints
 export const chatAPI = {
-  send: async (message, context = '') => {
+  send: async (message, context = '', animeId = null) => {
     try {
       const res = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message,
-          context
+          context,
+          anime_id: animeId
         })
       })
       return await res.json()
     } catch (error) {
       console.error('Error sending chat message:', error)
       return { response: 'Error connecting to chat service' }
+    }
+  },
+
+  getHistory: async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/chat/history?limit=20`)
+      return await res.json()
+    } catch (error) {
+      console.error('Error fetching chat history:', error)
+      return []
     }
   }
 }
