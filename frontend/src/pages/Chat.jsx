@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import './Chat.css'
 import { chatAPI } from '../services/api'
+import MessageRenderer from '../components/MessageRenderer'
 
 export default function Chat() {
   const [messages, setMessages] = useState([
@@ -8,6 +9,23 @@ export default function Chat() {
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [history, setHistory] = useState([])
+
+  useEffect(() => {
+    loadChatHistory()
+  }, [])
+
+  const loadChatHistory = async () => {
+    try {
+      const data = await chatAPI.getHistory()
+      if (data && Array.isArray(data)) {
+        setHistory(data)
+      }
+    } catch (error) {
+      console.error('Error loading history:', error)
+      setHistory([])
+    }
+  }
 
   const handleSend = async () => {
     if (input.trim()) {
@@ -38,17 +56,49 @@ export default function Chat() {
     <div className="chat-container">
       <div className="sidebar">
         <div className="sidebar-title">Recent</div>
-        <div className="chat-item">Best action anime</div>
-        <div className="chat-item">Like Toradora</div>
-        <div className="chat-item">Dark fantasy recs</div>
+        {history.length > 0 ? (
+          history.map((item, i) => (
+            <div
+              key={i}
+              className="chat-item"
+              onClick={() => setMessages([
+                { role: 'assistant', text: '👋 What anime are you looking for?' },
+                { role: 'user', text: item.user_message },
+                { role: 'assistant', text: item.assistant_response }
+              ])}
+              title={item.user_message}
+            >
+              {item.user_message.substring(0, 30)}...
+            </div>
+          ))
+        ) : (
+          <div style={{ color: 'var(--text-secondary)', fontSize: '12px', padding: '12px' }}>
+            No chats yet
+          </div>
+        )}
       </div>
       <div className="chat-main">
         <div className="chat-messages">
           {messages.map((msg, i) => (
             <div key={i} className={`message ${msg.role}`}>
-              <div className="bubble">{msg.text}</div>
+              <div className="bubble">
+                {msg.role === 'assistant' ? (
+                  <MessageRenderer text={msg.text} />
+                ) : (
+                  msg.text
+                )}
+              </div>
             </div>
           ))}
+          {loading && (
+            <div className="message assistant">
+              <div className="bubble typing">
+                <span>.</span>
+                <span>.</span>
+                <span>.</span>
+              </div>
+            </div>
+          )}
         </div>
         <div className="chat-input-area">
           <input

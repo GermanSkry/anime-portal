@@ -1,6 +1,6 @@
 # Anime Portal: Complete Roadmap
 
-## Current Status: Phase 2 🚀 IN PROGRESS (UI/UX Polish)
+## Current Status: Phase 2 🚀 IN PROGRESS (Chat + Refinement)
 
 ### Phase 2: UI/UX Polish & Feature Completion
 
@@ -12,6 +12,15 @@
 - ✅ Anime names displaying correctly across all pages
 - ✅ Studio data from database arrays
 - ✅ Image loading with fallback gradients
+- ✅ Similar anime recommendations (Title page)
+- ✅ Trailers embedded (YouTube)
+- ✅ Image preloading on pagination
+- ✅ Chat page with messaging UI
+- ✅ IP-based chat history (PostgreSQL)
+- ✅ Typing animation indicator
+- ✅ Recent chats sidebar
+- ✅ Contextual chat on Title page (ChatModal)
+- ✅ Claude AI integration + web search (SerpAPI)
 
 **Suggested Work Order:**
 1. **Day 1-2:** Browse & Genre improvements → Similar anime (Quick wins, visual impact)
@@ -38,12 +47,17 @@
   - Create sections dynamically based on genre counts
   - Fallback to top-rated if genre has <4 anime
 
-#### 4️⃣ Chat Features (Backend + Frontend)
-- [ ] **Functional chat on Title page** — replace emoji placeholder with real chat component
-- [ ] **Chat session history** — keep message history in window during current session (localStorage)
-- [ ] **User chat history** — save/retrieve previous chats per user
-  - Backend: Save chat history to PostgreSQL (identify by IP for MVP)
-  - Frontend: List previous conversations, load on click
+#### 4️⃣ Chat Features (Backend + Frontend) - MOSTLY DONE, NEEDS FIXES
+- ✅ **Functional chat on Title page** — ChatModal component working
+- ✅ **Chat session history** — IP-based history saving to PostgreSQL working
+- ✅ **User chat history** — Recent chats sidebar showing (when loading works)
+- 🔧 **FIXES NEEDED:**
+  - [ ] **Markdown rendering** — `**bold**` text not rendering (Claude response format changed)
+  - [ ] **Anime links** — No clickable links to Title page even when anime names detected
+  - [ ] **Chat continuation** — Previous messages not loading into current chat window
+  - [ ] **New Chat button** — Add button to start fresh conversation
+  - [ ] **Title page chat** — Test chat modal on Title page and ensure it works properly
+  - [ ] **Response format** — Claude sometimes uses different formats (Letter - description) instead of `**Title** - description`
 
 #### 5️⃣ Search Integration (Backend)
 - [ ] **Web search debugging** — check how web search works (currently appears non-functional)

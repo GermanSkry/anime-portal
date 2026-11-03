@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import '../styles/ChatModal.css'
 import { chatAPI } from '../services/api'
+import MessageRenderer from './MessageRenderer'
 
 export default function ChatModal({ isOpen, onClose, animeContext = null }) {
   const [messages, setMessages] = useState([
@@ -36,7 +37,21 @@ export default function ChatModal({ isOpen, onClose, animeContext = null }) {
       const response = await fetch('http://localhost:8000/api/chat/history?limit=10')
       if (response.ok) {
         const data = await response.json()
-        setHistory(data)
+        if (data.length > 0) {
+          // Convert history to messages (reverse to show oldest first)
+          const historyMessages = data.reverse().flatMap(item => [
+            { role: 'user', text: item.user_message },
+            { role: 'assistant', text: item.assistant_response }
+          ])
+          // Add greeting, then history
+          setMessages([
+            { role: 'assistant', text: animeContext
+              ? `📺 Ask me about ${animeContext.title_english || animeContext.name}!`
+              : '👋 What anime are you looking for?'
+            },
+            ...historyMessages
+          ])
+        }
       }
     } catch (error) {
       console.error('Error loading chat history:', error)
@@ -87,12 +102,22 @@ export default function ChatModal({ isOpen, onClose, animeContext = null }) {
         <div className="chat-modal-messages">
           {messages.map((msg, i) => (
             <div key={i} className={`message ${msg.role}`}>
-              <div className="bubble">{msg.text}</div>
+              <div className="bubble">
+                {msg.role === 'assistant' ? (
+                  <MessageRenderer text={msg.text} />
+                ) : (
+                  msg.text
+                )}
+              </div>
             </div>
           ))}
           {loading && (
             <div className="message assistant">
-              <div className="bubble typing">⏳ Thinking...</div>
+              <div className="bubble typing">
+                <span>.</span>
+                <span>.</span>
+                <span>.</span>
+              </div>
             </div>
           )}
           <div ref={messagesEndRef} />

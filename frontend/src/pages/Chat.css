@@ -150,3 +150,42 @@
   transform: translateY(-2px);
   box-shadow: 0 8px 16px rgba(217, 70, 239, 0.3);
 }
+
+.bubble.typing {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.bubble.typing span {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-end);
+  animation: pulse 1.4s infinite;
+}
+
+.bubble.typing span:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.bubble.typing span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.bubble.typing span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes pulse {
+  0%, 60%, 100% {
+    opacity: 0.3;
+  }
+  30% {
+    opacity: 1;
+  }
+}

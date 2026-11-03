@@ -53,7 +53,7 @@ async def chat_with_claude(messages: list[dict]) -> str:
     needs_search = any(keyword in user_message for keyword in search_keywords)
 
     # Detect if user wants current/trending info (might need web search)
-    web_keywords = ["trending", "current", "recent", "latest", "airing", "news", "review", "upcoming", "popular now", "this season", "popular in", "most popular", "top anime", "2024", "2025", "2026"]
+    web_keywords = ["trending", "current", "recent", "latest", "airing", "news", "review", "upcoming", "popular now", "this season", "popular in", "most popular", "top anime", "2024", "2025", "2026", "future", "will release", "release soon", "coming soon", "next season"]
     needs_web_search = any(keyword in user_message for keyword in web_keywords)
 
     augmented_content = messages[-1]["content"]
