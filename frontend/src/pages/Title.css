@@ -108,6 +108,7 @@
   justify-content: center;
   color: var(--text-muted);
   font-size: 14px;
+  overflow: hidden;
 }
 
 .similar-section {
@@ -179,6 +180,8 @@
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
+  min-height: 82px;
+  max-height: 82px;
 }
 
 .similar-name {
@@ -186,11 +189,33 @@
   font-weight: 700;
   color: var(--text-primary);
   margin-bottom: 4px;
+  min-height: 32px;
+  max-height: 32px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.3;
 }
 
 .similar-meta {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-secondary);
+  margin-bottom: 3px;
+}
+
+.similar-genres {
+  font-size: 10px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+  line-height: 1.2;
+}
+
+.similar-rating {
+  font-size: 11px;
+  color: var(--accent-end);
+  font-weight: 600;
 }
 
 .ai-chat-bubble {
@@ -215,4 +240,18 @@
 .ai-chat-bubble:hover {
   transform: scale(1.1);
   box-shadow: 0 12px 32px rgba(217, 70, 239, 0.4);
+}
+
+/* Clickable badges */
+.info-badge.clickable,
+.tag.clickable {
+  cursor: pointer;
+  transition: all 200ms ease-out;
+}
+
+.info-badge.clickable:hover,
+.tag.clickable:hover {
+  background: rgba(217, 70, 239, 0.2);
+  border-color: rgba(217, 70, 239, 0.6);
+  transform: translateY(-2px);
 }

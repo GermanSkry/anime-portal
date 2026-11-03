@@ -4,24 +4,25 @@ import './Browse.css'
 import { animeAPI, recommendAPI } from '../services/api'
 
 const defaultAnimeData = {
-  best: [
-    { id: 1, name: 'Steins;Gate', year: '2011', genre: 'Sci-Fi', rating: '9.0' },
-    { id: 2, name: 'Attack on Titan', year: '2013', genre: 'Action', rating: '8.9' },
-    { id: 3, name: 'Vinland Saga', year: '2019', genre: 'Historical', rating: '8.8' },
-    { id: 4, name: 'Natsume Yuujinchou', year: '2008', genre: 'Supernatural', rating: '8.7' },
-  ],
-  new: [
-    { id: 5, name: 'Jujutsu Kaisen S4', year: '2026', genre: 'Action', rating: '8.6' },
-    { id: 6, name: 'Wind Breaker', year: '2026', genre: 'School', rating: '8.3' },
-    { id: 7, name: 'Oshi no Ko S2', year: '2025', genre: 'Drama', rating: '8.5' },
-    { id: 8, name: 'Solo Leveling', year: '2024', genre: 'Action', rating: '8.4' },
-  ],
-  action: [
-    { id: 9, name: 'Demon Slayer', year: '2019', genre: 'Action', rating: '8.7' },
-    { id: 10, name: 'My Hero Academia', year: '2016', genre: 'Action', rating: '8.4' },
-    { id: 11, name: 'Mob Psycho 100', year: '2016', genre: 'Comedy', rating: '8.4' },
-    { id: 12, name: 'Chainsaw Man', year: '2022', genre: 'Action', rating: '8.6' },
-  ],
+  best: [],
+  new: [],
+  action: [],
+  drama: [],
+  psychological: [],
+}
+
+// Helper to reorder genres so matching genre appears first
+const getGenresForSection = (anime, sectionGenre) => {
+  if (!anime.genres) return []
+  if (!sectionGenre) return anime.genres
+
+  // Put matching genre first if it exists
+  const genres = anime.genres.slice()
+  const idx = genres.indexOf(sectionGenre)
+  if (idx > 0) {
+    [genres[0], genres[idx]] = [genres[idx], genres[0]]
+  }
+  return genres
 }
 
 export default function Browse() {
@@ -32,14 +33,27 @@ export default function Browse() {
     const loadAnime = async () => {
       try {
         console.log('Fetching anime from backend...')
-        const data = await animeAPI.getAll(12)
+        const data = await animeAPI.getAll(100)
         console.log('Received data:', data)
         if (data && data.length > 0) {
-          console.log(`Got ${data.length} anime, creating sections`)
+          // Filter anime by genre
+          const actionAnime = data.filter(a => a.genres?.includes('Action')).slice(0, 4)
+          const dramaAnime = data.filter(a => a.genres?.includes('Drama')).slice(0, 4)
+          const psychoAnime = data.filter(a => a.genres?.includes('Psychological')).slice(0, 4)
+
+          // Best = top rated
+          const bestAnime = [...data].sort((a, b) => (b.rating || 0) - (a.rating || 0)).slice(0, 4)
+
+          // New = most recent
+          const newAnime = [...data].sort((a, b) => (b.year || 0) - (a.year || 0)).slice(0, 4)
+
+          console.log(`Best: ${bestAnime.length}, New: ${newAnime.length}, Action: ${actionAnime.length}, Drama: ${dramaAnime.length}, Psychological: ${psychoAnime.length}`)
           setAnimeData({
-            best: data.slice(0, 4),
-            new: data.slice(4, 8),
-            action: data.slice(8, 12),
+            best: bestAnime,
+            new: newAnime,
+            action: actionAnime,
+            drama: dramaAnime,
+            psychological: psychoAnime,
           })
         } else {
           console.log('No data received, using defaults')
@@ -63,29 +77,43 @@ export default function Browse() {
         </div>
       </div>
 
-      {Object.entries(animeData).map(([section, animes]) => (
-        <div key={section} className="browse-section">
-          <h2 className="section-title">
-            {section === 'best' && '⭐ Best (Highest Rated)'}
-            {section === 'new' && '🆕 New (Recent Releases)'}
-            {section === 'action' && '⚔️ Action'}
-          </h2>
-          <div className="browse-grid">
-            {animes.map(anime => (
-              <Link key={anime.id} to={`/title/${anime.id}`} style={{ textDecoration: 'none' }}>
-                <div className="browse-card">
-                  <div className="browse-poster" style={{ backgroundImage: `url(${anime.cover_image})` }}></div>
-                  <div className="browse-badge">{anime.rating}</div>
-                  <div className="browse-info">
-                    <div className="browse-title">{anime.name}</div>
-                    <div className="browse-meta">{anime.year} • {anime.genres?.[0] || 'N/A'}</div>
+      {Object.entries(animeData).map(([section, animes]) => {
+        const sectionGenreMap = {
+          action: 'Action',
+          drama: 'Drama',
+          psychological: 'Psychological'
+        }
+        const sectionGenre = sectionGenreMap[section]
+
+        return (
+          <div key={section} className="browse-section">
+            <h2 className="section-title">
+              {section === 'best' && '⭐ Best (Highest Rated)'}
+              {section === 'new' && '🆕 New (Recent)'}
+              {section === 'action' && '⚔️ Action'}
+              {section === 'drama' && '🎭 Drama'}
+              {section === 'psychological' && '🧠 Psychological'}
+            </h2>
+            <div className="browse-grid">
+              {animes.map(anime => (
+                <Link key={anime.id} to={`/title/${anime.id}`} style={{ textDecoration: 'none' }}>
+                  <div className="browse-card">
+                    <div className="browse-poster" style={{ backgroundImage: `url(${anime.cover_image})` }}></div>
+                    <div className="browse-badge">{anime.rating}</div>
+                    <div className="browse-info">
+                      <div className="browse-title">{anime.title_english || anime.name}</div>
+                      <div className="browse-meta">{anime.year}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                        {getGenresForSection(anime, sectionGenre).slice(0, 3).join(', ') || 'N/A'}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              ))}
+            </div>
           </div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }

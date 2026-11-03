@@ -41,6 +41,16 @@ export const animeAPI = {
       console.error('Error fetching related anime:', error)
       return []
     }
+  },
+
+  getSimilar: async (id, limit = 4, minRating = 6) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/anime/${id}/similar?limit=${limit}&min_rating=${minRating}`)
+      return await res.json()
+    } catch (error) {
+      console.error('Error fetching similar anime:', error)
+      return []
+    }
   }
 }
 

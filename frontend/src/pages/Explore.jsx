@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import './Explore.css'
 import { searchAPI, animeAPI } from '../services/api'
 
@@ -7,11 +7,14 @@ import { searchAPI, animeAPI } from '../services/api'
 const defaultResults = []
 
 export default function Explore() {
+  const location = useLocation()
   const [allResults, setAllResults] = useState(defaultResults) // All unfiltered results
   const [results, setResults] = useState(defaultResults)  // Filtered results
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [openPopup, setOpenPopup] = useState(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 5
   const [filters, setFilters] = useState({
     ratingMin: 0,
     ratingMax: 10,
@@ -20,6 +23,25 @@ export default function Explore() {
     yearMax: 2026,
     studio: 'Any Studio'
   })
+
+  // Apply filter from Title page navigation
+  useEffect(() => {
+    if (location.state?.applyFilter) {
+      const { type, value } = location.state.applyFilter
+      setFilters(prev => {
+        const newFilters = { ...prev }
+        if (type === 'genre' && value) {
+          newFilters.genres = [value]
+        } else if (type === 'year' && value) {
+          newFilters.yearMin = value
+          newFilters.yearMax = value
+        } else if (type === 'studio' && value) {
+          newFilters.studio = value
+        }
+        return newFilters
+      })
+    }
+  }, [location.state])
 
   // Load random anime on mount
   useEffect(() => {
@@ -94,7 +116,22 @@ export default function Explore() {
     }
 
     setResults(filtered)
+    setCurrentPage(1)  // Reset to first page when filters change
   }, [filters, allResults])
+
+  // Preload images for next page
+  useEffect(() => {
+    const nextPageStart = currentPage * itemsPerPage
+    const nextPageEnd = nextPageStart + itemsPerPage
+    const nextPageResults = results.slice(nextPageStart, nextPageEnd)
+
+    nextPageResults.forEach(result => {
+      if (result.cover_image) {
+        const img = new Image()
+        img.src = result.cover_image
+      }
+    })
+  }, [currentPage, results])
 
   return (
     <div className="explore-wrapper">
@@ -163,7 +200,7 @@ export default function Explore() {
           <div className="filter-popup open" style={{left: '110px', top: '50px'}}>
             <div className="popup-title">Select Genres</div>
             <div className="genre-list">
-              {['Action', 'Romance', 'Comedy', 'Dark Fantasy', 'Sci-Fi', 'Drama'].map(g => (
+              {['Action', 'Drama', 'Comedy', 'Fantasy', 'Supernatural', 'Adventure', 'Romance', 'Psychological', 'Slice of Life', 'Mystery', 'Sci-Fi', 'Thriller', 'Horror', 'Ecchi', 'Sports', 'Mecha'].map(g => (
                 <div key={g} className="genre-item">
                   <input
                     type="checkbox"
@@ -222,21 +259,45 @@ export default function Explore() {
               onChange={(e) => setFilters({...filters, studio: e.target.value})}
             >
               <option>Any Studio</option>
-              <option>MAPPA</option>
-              <option>Madhouse</option>
-              <option>Studio Ghibli</option>
-              <option>Wit Studio</option>
-              <option>Kyoto Animation</option>
+              <option>bones</option>
               <option>A-1 Pictures</option>
+              <option>MAPPA</option>
+              <option>MADHOUSE</option>
+              <option>J.C.STAFF</option>
+              <option>Production I.G</option>
+              <option>WIT STUDIO</option>
+              <option>CloverWorks</option>
               <option>ufotable</option>
+              <option>Kyoto Animation</option>
+              <option>WHITE FOX</option>
+              <option>Studio Pierrot</option>
             </select>
           </div>
         )}
       </div>
 
+      {/* Active filters display */}
+      {(filters.ratingMin > 0 || filters.ratingMax < 10 || filters.genres.length > 0 ||
+        filters.yearMin > 1970 || filters.yearMax < 2026 || filters.studio !== 'Any Studio') && (
+        <div className="active-filters">
+          {filters.ratingMin > 0 || filters.ratingMax < 10 ? (
+            <div className="filter-badge">⭐ Rating: {filters.ratingMin}-{filters.ratingMax}</div>
+          ) : null}
+          {filters.genres.map(genre => (
+            <div key={genre} className="filter-badge">🎬 {genre}</div>
+          ))}
+          {filters.yearMin > 1970 || filters.yearMax < 2026 ? (
+            <div className="filter-badge">📅 Year: {filters.yearMin}-{filters.yearMax}</div>
+          ) : null}
+          {filters.studio !== 'Any Studio' ? (
+            <div className="filter-badge">🎨 {filters.studio}</div>
+          ) : null}
+        </div>
+      )}
+
       <div className="results-header">
         <div className="results-count">{results.length} Results Found</div>
-        <div className="results-page-info">Page 1 of 10 (5 per page)</div>
+        <div className="results-page-info">Page {currentPage} of {Math.ceil(results.length / itemsPerPage) || 1} ({itemsPerPage} per page)</div>
       </div>
 
       <div className="results-list">
@@ -248,14 +309,14 @@ export default function Explore() {
           <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
             No results found. Try a different search.
           </div>
-        ) : results.slice(0, 5).map(result => (
+        ) : results.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(result => (
           <Link key={result.id} to={`/title/${result.id}`} style={{ textDecoration: 'none' }}>
             <div className="result-item">
               <div className="result-item-poster" style={{ backgroundImage: `url(${result.cover_image})` }}></div>
               <div className="result-item-content">
                 <span className="result-item-badge rating">{result.rating}★</span>
                 <div className="result-item-header">
-                  <h3 className="result-item-title">{result.name || result.title}</h3>
+                  <h3 className="result-item-title">{result.title_english || result.name || result.title}</h3>
                   <div className="result-item-meta">
                     <span className="result-item-badge">{result.year}</span>
                     <span className="result-item-badge">{result.studios?.[0] || 'N/A'}</span>
@@ -274,9 +335,21 @@ export default function Explore() {
       </div>
 
       <div className="pagination">
-        <button className="pagination-btn" disabled>← Previous</button>
-        <span className="pagination-info">Page 1 of 10</span>
-        <button className="pagination-btn">Next →</button>
+        <button
+          className="pagination-btn"
+          disabled={currentPage === 1}
+          onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+        >
+          ← Previous
+        </button>
+        <span className="pagination-info">Page {currentPage} of {Math.ceil(results.length / itemsPerPage) || 1}</span>
+        <button
+          className="pagination-btn"
+          disabled={currentPage >= Math.ceil(results.length / itemsPerPage)}
+          onClick={() => setCurrentPage(currentPage + 1)}
+        >
+          Next →
+        </button>
       </div>
     </div>
   )

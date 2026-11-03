@@ -13,22 +13,54 @@
 - ✅ Studio data from database arrays
 - ✅ Image loading with fallback gradients
 
-**TODO:**
-- [ ] **Similar anime on Title page** — create backend endpoint to find similar anime (by genre, rating, year, studio) and wire up frontend
-- [ ] **Show applied filters in Explore** — display active filter badges/chips so users see what's filtered
-- [ ] **Add more genres in Browse page** — currently only shows "Action" category, expand to more (Comedy, Drama, Romance, etc.)
-- [ ] **Fix genres data consistency** — ensure all anime have proper genres populated from database
-- [ ] **Recent anime filtering** — check that Year filter + Rating filter work together on "Recent" section
-- [ ] **Trailers in database** — verify trailer_url is populated in database, display in Title page
-- [ ] **Web search integration** — check how web search works (currently appears non-functional)
-- [ ] **Chat on Title page** — replace placeholder button with functional chat component
-- [ ] **Chat history (session)** — keep message history in chat window during current session
-- [ ] **User chat history** — save/retrieve previous chats per user (identify by IP for now, improve later)
-- [ ] **Create Makefile** — add easy start commands for:
-  - Front-end dev server
-  - Backend server
-  - Database (PostgreSQL)
-  - Data population script (update_plots.py or ingest_anime.py)
+**Suggested Work Order:**
+1. **Day 1-2:** Browse & Genre improvements → Similar anime (Quick wins, visual impact)
+2. **Day 3:** Title page features (Trailers, similar anime working)
+3. **Day 4:** Chat features (Requires UI work on Title page)
+4. **Day 5:** Polish & DevEx (Makefile, filter badges)
+
+**TODO (Grouped by Feature):**
+
+#### 1️⃣ Title Page Features (Backend + Frontend)
+- [ ] **Similar anime recommendations** — create backend endpoint to find similar anime (by genre, rating, year, studio) and wire up frontend
+  - Backend: `/api/anime/{id}/similar` endpoint with SQL scoring
+  - Frontend: Display 4-column grid of similar titles
+  - Metrics: Genre overlap, rating proximity, studio match
+- [ ] **Trailers display** — verify trailer_url is populated in DB, embed YouTube player on Title page
+
+#### 2️⃣ Explore Page Filtering (Frontend)
+- [ ] **Show applied filters as badges** — display active filter chips above results (e.g., "Action", "2020-2026", "8.5+")
+- [ ] **Test filter combinations** — verify Year filter + Rating filter work together in "Recent" section
+
+#### 3️⃣ Browse Page & Genre Data (Backend + Frontend)
+- [ ] **Fix genres data consistency** — ensure all 250 anime have proper genres populated from database
+- [ ] **Add more genre categories** — expand Browse page from just "Action" to: Comedy, Drama, Romance, Dark Fantasy, Sci-Fi, Adventure
+  - Create sections dynamically based on genre counts
+  - Fallback to top-rated if genre has <4 anime
+
+#### 4️⃣ Chat Features (Backend + Frontend)
+- [ ] **Functional chat on Title page** — replace emoji placeholder with real chat component
+- [ ] **Chat session history** — keep message history in window during current session (localStorage)
+- [ ] **User chat history** — save/retrieve previous chats per user
+  - Backend: Save chat history to PostgreSQL (identify by IP for MVP)
+  - Frontend: List previous conversations, load on click
+
+#### 5️⃣ Search Integration (Backend)
+- [ ] **Web search debugging** — check how web search works (currently appears non-functional)
+  - Verify SerpAPI connection
+  - Test `/api/search/web` endpoint
+  - Debug response parsing
+
+#### 6️⃣ Developer Experience (Automation)
+- [ ] **Create Makefile** — add easy start commands:
+  ```makefile
+  make dev          # Start frontend + backend + db
+  make backend      # Start backend only (port 8000)
+  make frontend     # Start frontend only (port 5175)
+  make db-up        # Start PostgreSQL + Redis
+  make db-down      # Stop containers
+  make db-reset     # Reset data & re-ingest
+  ```
 
 **Notes:**
 - Backend restart needed after code changes (due to hot-reload timing)
