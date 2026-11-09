@@ -38,18 +38,12 @@ async def search_anime_db(query: str, limit: int = 5) -> list[dict]:
         await conn.close()
 
 async def chat_with_claude(messages: list[dict]) -> str:
-    """Chat with Claude, intelligently using database first, then web search if needed
-
-    Priority order:
-    1. Search database for specific anime (saves web quota)
-    2. If no DB results and user wants current info → search web
-    3. If no results from either → Claude uses general knowledge + suggests web search
-    """
+    """Chat with Claude, intelligently using database first, then web search if needed"""
     augmented_messages = messages.copy()
     user_message = messages[-1]["content"].lower() if messages else ""
 
     # Detect if user is asking for anime search/recommendation
-    search_keywords = ["search", "find", "recommend", "suggest", "like", "similar", "what anime", "compare", "good"]
+    search_keywords = ["search", "find", "recommend", "suggest", "like", "similar", "what anime", "compare", "good", "action", "drama", "romance", "sci-fi", "horror"]
     needs_search = any(keyword in user_message for keyword in search_keywords)
 
     # Detect if user wants current/trending info (might need web search)
@@ -62,7 +56,7 @@ async def chat_with_claude(messages: list[dict]) -> str:
 
     # Extract search term once
     search_term = user_message
-    for phrase in ["like ", "similar to ", "for ", "about ", "trending ", "recent "]:
+    for phrase in ["like ", "similar to ", "for ", "about ", "trending ", "recent ", "by ", "from "]:
         if phrase in search_term:
             search_term = search_term.split(phrase)[-1]
             break
@@ -72,7 +66,7 @@ async def chat_with_claude(messages: list[dict]) -> str:
 
     # STEP 1: Try database search first (saves web quota)
     if (needs_search or needs_web_search) and search_term and len(search_term) > 1:
-        db_results = await search_anime_db(search_term, limit=3)
+        db_results = await search_anime_db(search_term, limit=5)
 
     # STEP 2: Add database results if found
     if db_results:
