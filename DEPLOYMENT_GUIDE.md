@@ -168,7 +168,65 @@ Frontend: CloudFront + S3
 
 ---
 
-## Recommended Approach: Approach A (VPS)
+### Approach E: Vercel + VPS (Hybrid) ⭐ BEST FOR THIS PROJECT
+
+**What:** Frontend on Vercel (free), backend on cheap VPS
+
+**Architecture:**
+```
+Vercel (Free Tier)
+└── Frontend (Next.js/React static)
+    └── HTTPS automatic
+    └── CDN global
+    └── Deployments from git
+
+VPS (DigitalOcean/Linode $5-12/month)
+├── Postgres (internal)
+├── Redis (internal)
+├── Kafka/Redpanda (internal)
+├── FastAPI Backend (port 8000)
+├── Go Service (port 8001)
+└── Nginx (reverse proxy, ports 80/443)
+
+Architecture:
+user → Vercel CDN → Vercel Frontend
+     → Vercel API Routes (optional)
+     → Your VPS Backend
+
+OR
+
+user → Your Domain DNS → Nginx (Cloudflare free)
+                      ├─ / → Frontend from Vercel
+                      └─ /api → Backend on VPS
+```
+
+**Pros:**
+- ✅ **Frontend is FREE** (Vercel free tier)
+- ✅ **Backend is CHEAP** ($5-12/month)
+- ✅ **Total cost: $5-12/month** (not $23-43)
+- ✅ Automatic frontend deploys from git
+- ✅ Global CDN for frontend
+- ✅ Vercel handles SSL for frontend
+- ✅ Easy to manage (split responsibility)
+- ✅ Can still migrate each part independently
+
+**Cons:**
+- ❌ Slightly more complex (two platforms)
+- ⚠️ Need DNS setup for routing
+- ⚠️ Frontend in different region from backend (minor latency)
+
+**Effort:** 2-3 days
+**Cost:** **$5-12/month** (just VPS, frontend is FREE)
+
+**Recommended for you because:**
+1. Frontend deployment is handled by Vercel (no VPS resources)
+2. Backend/services on cheap VPS
+3. Lowest total cost
+4. Easiest frontend updates (git push → auto-deploy)
+
+---
+
+## Recommended Approach: Approach E (Vercel + VPS) ⭐
 
 **Why?** For this project, a traditional VPS is best because:
 
@@ -179,6 +237,103 @@ Frontend: CloudFront + S3
 5. **Speed** - Gets to "working service" fastest (2-3 days)
 
 **As traffic grows**, you can upgrade to Approach B (Docker) or C (Kubernetes).
+
+---
+
+## Implementation: Approach E (Vercel + VPS) Step-by-Step ⭐
+
+### Phase 0: DNS Setup
+
+**Get a domain** (optional, use Vercel's free `*.vercel.app` if starting)
+
+```bash
+# Buy domain from Namecheap ($10/year)
+# Point to:
+# - Vercel nameservers (for *.vercel.app DNS)
+# - Or use CNAME for frontend, A-record for backend
+```
+
+### Phase 1: Deploy Frontend to Vercel (FREE!)
+
+**1. Connect Vercel**
+```bash
+# Option A: Via GitHub (recommended)
+# 1. Go to vercel.com
+# 2. Sign up (free)
+# 3. Click "Import Project"
+# 4. Connect GitHub account
+# 5. Select anime-portal repo
+# 6. Click "Deploy"
+# Done! Frontend is live on https://anime-portal-xxx.vercel.app
+
+# Option B: Via CLI
+npm install -g vercel
+cd /Users/germanskrylnikov/anime-portal/frontend
+vercel
+# Follow prompts
+```
+
+**2. Configure API Routes (Optional)**
+```bash
+# Vercel can host /api endpoints as serverless functions
+# But we'll use your VPS backend instead
+# Just set environment variable:
+
+# In Vercel dashboard → Settings → Environment Variables:
+VITE_API_URL=https://api.yourdomain.com/api
+```
+
+**3. Frontend is now LIVE and FREE** ✅
+
+Every git push to main auto-deploys!
+
+---
+
+### Phase 2: Setup Cheap VPS for Backend
+
+**1. Provision VPS**
+```bash
+# DigitalOcean Basic ($5/month)
+# - 512MB RAM / 1 vCPU / 10GB SSD
+# OR
+# Linode Nanode ($5/month)
+# OR
+# AWS Lightsail ($5/month)
+
+# Note: 512MB is tight, use $12/month for comfort (2GB RAM)
+```
+
+**2. Point Domain DNS**
+```
+yourdomain.com DNS settings:
+├── @ (root) → Vercel nameservers
+│   (or CNAME to vercel.app)
+│
+└── api.yourdomain.com → Your VPS IP (203.0.113.42)
+    (A record)
+```
+
+### Phase 3-6: [Same as Approach A above]
+
+Deploy Postgres, Redis, Kafka, Backend, Go Service, Nginx
+
+**Key difference:** Nginx routes:
+```nginx
+server {
+    listen 80;
+    server_name api.yourdomain.com;
+    
+    # Backend
+    location /api/ {
+        proxy_pass http://localhost:8000;
+    }
+    
+    # Go service  
+    location /search/ {
+        proxy_pass http://localhost:8001;
+    }
+}
+```
 
 ---
 
@@ -546,13 +701,46 @@ rpk topic describe chat.messages
 
 ## Cost Analysis
 
-| Component | Service | Cost/Month | Notes |
-|-----------|---------|-----------|-------|
-| **VPS** | DigitalOcean 2GB | $12 | 2 vCPU, 50GB SSD |
-| **Domain** | Namecheap | $10 | .com domain |
-| **Backups** | AWS S3 | $1 | Backup storage |
-| **CDN** | CloudFlare | $0-20 | Optional, free tier available |
-| **Total** | - | **$23-43/month** | - |
+### Approach A (VPS Only)
+| Component | Service | Cost/Month |
+|-----------|---------|-----------|
+| VPS (2GB) | DigitalOcean | $12 |
+| Domain | Namecheap | $10 |
+| Backups | AWS S3 | $1 |
+| **Total** | | **$23-43/month** |
+
+### Approach E (Vercel + VPS) ⭐ RECOMMENDED
+| Component | Service | Cost/Month |
+|-----------|---------|-----------|
+| **Frontend** | **Vercel FREE** | **$0** |
+| Backend VPS | DigitalOcean 2GB | $12 |
+| Domain | Namecheap | $10 |
+| Backups | AWS S3 | $1 |
+| **Total** | | **$23/month** |
+
+**But with Vercel:**
+- Frontend is auto-deployed (git push)
+- Frontend has global CDN
+- Frontend has automatic SSL
+- Frontend updates don't affect VPS
+- **You save ~$0 but gain convenience**
+
+**Better option: Use cheapest VPS**
+| Component | Service | Cost/Month |
+|-----------|---------|-----------|
+| Frontend | **Vercel FREE** | **$0** |
+| Backend VPS | Linode/AWS Lightsail | $5 |
+| Domain | Namecheap | $10 |
+| **Total** | | **$15/month** |
+
+**Or start completely free:**
+| Component | Service | Cost/Month |
+|-----------|---------|-----------|
+| Frontend | Vercel FREE | $0 |
+| Backend | Render/Railway free tier | $0 |
+| Domain | Freenom (free .tk) | $0 |
+| **Total** | | **$0/month** ⭐ |
+| Limitation | Only 500 free backend hours/month | -
 
 ---
 
