@@ -110,7 +110,8 @@ export default function Browse() {
 
   const handleSearch = () => {
     if (!searchQuery.trim()) {
-      // If search is empty, show default data
+      // If search is empty, reset to default view
+      handleClearSearch()
       return
     }
 
@@ -155,6 +156,38 @@ export default function Browse() {
       psychological: psychoAnime,
     })
   }
+
+  const handleInputChange = (e) => {
+    const query = e.target.value
+    setSearchQuery(query)
+
+    // Auto-search as user types
+    if (query.trim()) {
+      // Trigger search with the new query
+      const queryLower = query.toLowerCase()
+      const scored = allAnime
+        .map(anime => ({
+          anime,
+          titleScore: calculateSimilarity(anime.title_english || anime.name || '', query),
+          genreScore: anime.genres?.some(g => g.toLowerCase().includes(queryLower)) ? 30 : 0,
+          yearScore: String(anime.year).includes(queryLower) ? 25 : 0
+        }))
+        .filter(item => item.titleScore > 0 || item.genreScore > 0 || item.yearScore > 0)
+        .sort((a, b) => (b.titleScore + b.genreScore + b.yearScore) - (a.titleScore + a.genreScore + a.yearScore))
+
+      const filtered = scored.map(item => item.anime)
+      setAnimeData({
+        best: filtered.slice(0, 8),
+        new: [],
+        action: [],
+        drama: [],
+        psychological: [],
+      })
+    } else {
+      // Empty query - show default view
+      handleClearSearch()
+    }
+  }
   return (
     <div className="browse-wrapper">
       <div className="browse-hero">
@@ -165,10 +198,14 @@ export default function Browse() {
             className="search-input"
             placeholder="Search by title, genre, or year..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={handleInputChange}
             onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
           />
-          <button className="search-btn" onClick={handleSearch}>Search</button>
+          {!searchQuery && (
+            <button className="search-btn" onClick={handleSearch} style={{ opacity: 0.6 }}>
+              Search
+            </button>
+          )}
           {searchQuery && (
             <button className="search-btn" onClick={handleClearSearch} style={{ marginLeft: '8px', opacity: 0.8 }}>
               Clear
