@@ -6,7 +6,7 @@ import MessageRenderer from './MessageRenderer'
 export default function ChatModal({ isOpen, onClose, animeContext = null }) {
   const [messages, setMessages] = useState([
     { role: 'assistant', text: animeContext
-      ? `📺 Ask me about ${animeContext.title_english || animeContext.name}!`
+      ? `📺 Discussing **${animeContext.title_english || animeContext.name}**...`
       : '👋 What anime are you looking for?'
     }
   ])
@@ -32,6 +32,25 @@ export default function ChatModal({ isOpen, onClose, animeContext = null }) {
     }
   }, [isOpen])
 
+  const getCustomGreeting = () => {
+    if (!animeContext) return '👋 What anime are you looking for?'
+
+    const title = animeContext.title_english || animeContext.name
+    const rating = animeContext.rating ? `★${animeContext.rating}/10` : null
+    const genres = animeContext.genres?.slice(0, 2).join(', ') || null
+    const year = animeContext.year
+
+    const greetings = [
+      `🎬 Let's dive into **${title}** (${year}, ${genres})! What would you like to know?`,
+      `📺 Curious about **${title}**? I'm here to discuss this ${rating} anime with you!`,
+      `✨ Welcome to **${title}**! Ask me anything about this ${genres} masterpiece.`,
+      `🎭 Exploring **${title}** together! What interests you most about this series?`,
+      `⚔️ **${title}** is calling! Let's talk about this ${rating} ${genres} anime.`
+    ]
+
+    return greetings[Math.floor(Math.random() * greetings.length)]
+  }
+
   const loadChatHistory = async () => {
     try {
       // If anime context provided, load history for that anime only
@@ -50,10 +69,7 @@ export default function ChatModal({ isOpen, onClose, animeContext = null }) {
           ])
           // Add greeting, then history
           setMessages([
-            { role: 'assistant', text: animeContext
-              ? `📺 Ask me about ${animeContext.title_english || animeContext.name}!`
-              : '👋 What anime are you looking for?'
-            },
+            { role: 'assistant', text: getCustomGreeting() },
             ...historyMessages
           ])
         }
