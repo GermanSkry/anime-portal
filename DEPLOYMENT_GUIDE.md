@@ -699,6 +699,111 @@ rpk topic describe chat.messages
 
 ---
 
+## Free VPS Options for Portfolio Projects
+
+### Ranking: Best Free Options
+
+#### 🏆 #1: Oracle Cloud (BEST - Always Free)
+
+**What:** Oracle's permanent free tier
+
+**Specs:**
+- ✅ **2GB RAM** (best!)
+- ✅ 2 vCPU (ARM-based)
+- ✅ 100GB storage
+- ✅ **Truly always free** (no expiration)
+- ✅ Public IP included
+
+**Why it's best for your project:**
+- Enough for Postgres + Redis + Kafka + all services
+- No time limit (works for portfolio long-term)
+- Can run 24/7
+
+**Cons:**
+- ARM-based (some binaries might not work)
+- Limited to 1 compute instance
+- Setup takes 10 minutes
+
+**Cost:** $0/month (forever) ⭐
+
+---
+
+#### 🥈 #2: Railway (Free $5/month Credits)
+
+**What:** Simple deployment with free credits
+
+**Specs:**
+- $5/month free credits
+- PostgreSQL included
+- Redis add-on available
+- Easy git deployments
+
+**Why it works:**
+- $5/month might cover all services
+- Very beginner-friendly
+- Good if free tier doesn't last
+
+**Cons:**
+- After $5 credits: pay-as-you-go
+- Limited RAM per container
+- Typical bill: $10-30/month after free tier
+- No guaranteed free tier
+
+**Cost:** $0-30/month (depends)
+
+---
+
+#### 🥉 #3: Fly.io (Free Credits)
+
+**What:** Container hosting with free credits
+
+**Specs:**
+- Free tier available
+- Docker containers
+- Shared CPU instances
+
+**Cons:**
+- Complex Docker setup needed
+- Limited RAM (256MB per container)
+- Kafka might not fit free tier
+- Typical bill: $15-50/month after free
+
+**Cost:** $0-50/month
+
+---
+
+### Free Tier Not Recommended
+
+**❌ AWS Free Tier** - Only free for 1 year, then expensive
+**❌ Heroku** - Killed free tier (2022)
+**❌ Render** - 0.5GB RAM (too limited for Kafka)
+
+---
+
+### BEST STRATEGY FOR PORTFOLIO: Oracle + Vercel
+
+```
+Frontend: Vercel (Free) ✅
+Backend: Oracle Cloud (Free) ✅
+Domain: Freenom .tk (Free) ✅
+---
+TOTAL: $0/month ⭐⭐⭐
+```
+
+**Setup:**
+1. Sign up Vercel → Deploy frontend (5 min)
+2. Sign up Oracle Cloud → Get 2GB free VM (10 min)
+3. Install Postgres, Redis, Kafka on Oracle
+4. Deploy backend services
+5. Wire DNS
+6. Done!
+
+**Time to live:** 30 minutes
+**Cost:** $0/month forever
+**Skills:** DevOps, Linux, deployment
+
+---
+
 ## Cost Analysis
 
 ### Approach A (VPS Only)
