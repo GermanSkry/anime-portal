@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 import sentry_sdk
 from sentry_sdk.integrations.logging import LoggingIntegration
 from posthog import Posthog
+from app.utils.langfuse_tracer import get_dashboard_url, flush_traces
 
 load_dotenv()
 
@@ -53,6 +54,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.on_event("startup")
+async def startup_event():
+    """Initialize observability on startup"""
+    logging.info("🚀 Anime Portal API Starting")
+    logging.info(f"📊 Langfuse Dashboard: {get_dashboard_url()}")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Flush observability traces on shutdown"""
+    logging.info("🛑 Shutting down - flushing traces")
+    flush_traces()
+
 @app.get("/health")
 async def health():
     return {"status": "ok"}
@@ -60,6 +73,21 @@ async def health():
 @app.get("/")
 async def root():
     return {"message": "Anime Portal API - Ready"}
+
+@app.get("/observability")
+async def observability():
+    """Get observability dashboard URLs and status"""
+    return {
+        "status": "ok",
+        "dashboards": {
+            "langfuse": get_dashboard_url(),
+            "docs": "http://localhost:8000/docs"
+        },
+        "tracing": {
+            "enabled": bool(os.getenv("LANGFUSE_PUBLIC_KEY")),
+            "host": os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com")
+        }
+    }
 
 # Include routers (specific routes first, catch-all last)
 app.include_router(embeddings.router)

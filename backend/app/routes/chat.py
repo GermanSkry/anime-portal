@@ -1,8 +1,9 @@
-"""Chat endpoint with LangGraph agent + chat history"""
+"""Chat endpoint with LangGraph agent + Langfuse tracing"""
 from fastapi import APIRouter, Request, Query
 from pydantic import BaseModel
 from typing import Optional
 from app.utils.langgraph_agent import run_agent
+from app.utils.langfuse_tracer import trace_llm_call, set_user_context, log_trace_event
 import psycopg
 from app.config import settings
 import re
@@ -101,8 +102,14 @@ async def save_chat_message(user_ip: str, user_msg: str, assistant_msg: str, ani
         await conn.close()
 
 @router.post("/chat")
+@trace_llm_call(name="anime_chat", tags=["chat", "anime"])
 async def chat(request: ChatRequest, req: Request) -> ChatResponse:
-    """Chat with LangGraph agent about anime."""
+    """Chat with LangGraph agent. Instrumented with Langfuse tracing."""
+
+    user_ip = get_client_ip(req)
+    set_user_context(user_ip, tags=["anime-portal"])
+
+    log_trace_event("chat_start", {"user": user_ip, "message": request.message[:50]})
 
     # Build message history
     messages = []
@@ -120,24 +127,30 @@ async def chat(request: ChatRequest, req: Request) -> ChatResponse:
         "content": request.message
     })
 
+    log_trace_event("history_built", {"message_count": len(messages)})
+
     # Run LangGraph agent
     result = await run_agent(messages)
     response_text = result["response"]
     tool_calls = result["tool_calls"]
     anime_references_list = result["anime_references"]
 
+    log_trace_event("agent_response", {"response_length": len(response_text), "tool_calls": len(tool_calls)})
+
     # Convert to AnimeReference objects
     anime_references = []
     for ref in anime_references_list:
-        # Look up anime ID
         title = ref.get("title", "")
         anime_id = await lookup_anime_by_title(title)
         if anime_id:
             anime_references.append(AnimeReference(title=title, id=anime_id))
 
+    log_trace_event("references_found", {"count": len(anime_references)})
+
     # Save to chat history
-    user_ip = get_client_ip(req)
     await save_chat_message(user_ip, request.message, response_text, request.anime_id, anime_references)
+
+    log_trace_event("chat_saved", {"status": "success"})
 
     return ChatResponse(
         response=response_text,
