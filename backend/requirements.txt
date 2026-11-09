@@ -11,5 +11,5 @@ sentry-sdk[fastapi]==1.45.0
 posthog==3.1.0
 aiokafka==0.10.0
 langfuse==2.39.0
-langgraph==0.1.21
+langgraph==0.1.19
 langchain==0.1.20
