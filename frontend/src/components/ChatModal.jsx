@@ -41,7 +41,7 @@ export default function ChatModal({ isOpen, onClose, animeContext = null }) {
           // Convert history to messages (reverse to show oldest first)
           const historyMessages = data.reverse().flatMap(item => [
             { role: 'user', text: item.user_message },
-            { role: 'assistant', text: item.assistant_response }
+            { role: 'assistant', text: item.assistant_response, animeReferences: item.anime_references || [] }
           ])
           // Add greeting, then history
           setMessages([
@@ -56,6 +56,36 @@ export default function ChatModal({ isOpen, onClose, animeContext = null }) {
     } catch (error) {
       console.error('Error loading chat history:', error)
     }
+  }
+
+  const buildHistoryForAPI = () => {
+    // Build message history, summarizing old messages if > 5
+    if (messages.length <= 5) {
+      // Keep all recent messages
+      return messages.map(msg => ({
+        role: msg.role,
+        content: msg.text
+      }))
+    }
+
+    // Summarize old messages to save tokens
+    const recentMessages = messages.slice(-5)
+    const oldMessages = messages.slice(0, -5)
+
+    // Create a concise summary of old conversation
+    const summary = oldMessages
+      .map(msg => `${msg.role === 'user' ? 'User' : 'AI'}: ${msg.text.substring(0, 100)}...`)
+      .join('\n')
+
+    const systemSummary = {
+      role: 'user',
+      content: `[Earlier conversation summary]\n${summary}`
+    }
+
+    return [systemSummary, ...recentMessages.map(msg => ({
+      role: msg.role,
+      content: msg.text
+    }))]
   }
 
   const handleSend = async () => {
@@ -73,10 +103,14 @@ export default function ChatModal({ isOpen, onClose, animeContext = null }) {
         contextMessage = `[About ${animeContext.title_english || animeContext.name} - ID: ${animeContext.id}, Rating: ${animeContext.rating}/10, Genres: ${animeContext.genres?.join(', ') || 'N/A'}] ${userMessage}`
       }
 
-      const response = await chatAPI.send(contextMessage, '', animeContext?.id)
+      // Build history with summarization if > 5 messages
+      const messageHistory = buildHistoryForAPI()
+
+      const response = await chatAPI.send(contextMessage, '', animeContext?.id, messageHistory)
       setMessages(prev => [...prev, {
         role: 'assistant',
-        text: response.response || 'Sorry, I couldn\'t process that. Try asking about this anime!'
+        text: response.response || 'Sorry, I couldn\'t process that. Try asking about this anime!',
+        animeReferences: response.anime_references || []
       }])
     } catch (error) {
       console.error('Chat error:', error)
@@ -104,7 +138,7 @@ export default function ChatModal({ isOpen, onClose, animeContext = null }) {
             <div key={i} className={`message ${msg.role}`}>
               <div className="bubble">
                 {msg.role === 'assistant' ? (
-                  <MessageRenderer text={msg.text} />
+                  <MessageRenderer text={msg.text} animeReferences={msg.animeReferences} />
                 ) : (
                   msg.text
                 )}

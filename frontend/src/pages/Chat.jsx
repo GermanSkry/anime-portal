@@ -27,6 +27,45 @@ export default function Chat() {
     }
   }
 
+  const loadHistoryChat = (item) => {
+    // Load a previous conversation from history
+    setMessages([
+      { role: 'assistant', text: '👋 What anime are you looking for?' },
+      { role: 'user', text: item.user_message },
+      { role: 'assistant', text: item.assistant_response, animeReferences: item.anime_references || [] }
+    ])
+  }
+
+  const buildHistoryForAPI = () => {
+    // Build message history, summarizing old messages if > 5
+    if (messages.length <= 5) {
+      // Keep all recent messages
+      return messages.map(msg => ({
+        role: msg.role,
+        content: msg.text
+      }))
+    }
+
+    // Summarize old messages to save tokens
+    const recentMessages = messages.slice(-5)
+    const oldMessages = messages.slice(0, -5)
+
+    // Create a concise summary of old conversation
+    const summary = oldMessages
+      .map(msg => `${msg.role === 'user' ? 'User' : 'AI'}: ${msg.text.substring(0, 100)}...`)
+      .join('\n')
+
+    const systemSummary = {
+      role: 'user',
+      content: `[Earlier conversation summary]\n${summary}`
+    }
+
+    return [systemSummary, ...recentMessages.map(msg => ({
+      role: msg.role,
+      content: msg.text
+    }))]
+  }
+
   const handleSend = async () => {
     if (input.trim()) {
       const userMessage = input.trim()
@@ -35,10 +74,14 @@ export default function Chat() {
       setLoading(true)
 
       try {
-        const response = await chatAPI.send(userMessage)
+        // Build history with summarization if > 5 messages
+        const messageHistory = buildHistoryForAPI()
+
+        const response = await chatAPI.send(userMessage, '', null, messageHistory)
         setMessages(prev => [...prev, {
           role: 'assistant',
-          text: response.response || 'Sorry, I couldn\'t process that. Try asking about specific anime or genres!'
+          text: response.response || 'Sorry, I couldn\'t process that. Try asking about specific anime or genres!',
+          animeReferences: response.anime_references || []
         }])
       } catch (error) {
         console.error('Chat error:', error)
@@ -61,11 +104,7 @@ export default function Chat() {
             <div
               key={i}
               className="chat-item"
-              onClick={() => setMessages([
-                { role: 'assistant', text: '👋 What anime are you looking for?' },
-                { role: 'user', text: item.user_message },
-                { role: 'assistant', text: item.assistant_response }
-              ])}
+              onClick={() => loadHistoryChat(item)}
               title={item.user_message}
             >
               {item.user_message.substring(0, 30)}...
@@ -83,7 +122,7 @@ export default function Chat() {
             <div key={i} className={`message ${msg.role}`}>
               <div className="bubble">
                 {msg.role === 'assistant' ? (
-                  <MessageRenderer text={msg.text} />
+                  <MessageRenderer text={msg.text} animeReferences={msg.animeReferences} />
                 ) : (
                   msg.text
                 )}

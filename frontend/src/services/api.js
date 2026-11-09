@@ -97,7 +97,7 @@ export const searchAPI = {
 
 // Chat API endpoints
 export const chatAPI = {
-  send: async (message, context = '', animeId = null) => {
+  send: async (message, context = '', animeId = null, messageHistory = []) => {
     try {
       const res = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
@@ -105,7 +105,8 @@ export const chatAPI = {
         body: JSON.stringify({
           message,
           context,
-          anime_id: animeId
+          anime_id: animeId,
+          history: messageHistory
         })
       })
       return await res.json()
