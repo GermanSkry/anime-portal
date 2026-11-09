@@ -1,4 +1,4 @@
-"""Chat endpoint with LangGraph agent + Langfuse tracing"""
+"""Chat endpoint with LangGraph agent + Langfuse tracing + Kafka publishing"""
 from fastapi import APIRouter, Request, Query
 from pydantic import BaseModel
 from typing import Optional
@@ -7,6 +7,32 @@ from app.utils.langfuse_tracer import trace_llm_call, set_user_context, log_trac
 import psycopg
 from app.config import settings
 import re
+import json
+import uuid
+from datetime import datetime
+from aiokafka import AIOKafkaProducer
+import os
+
+kafka_producer = None
+
+async def get_kafka_producer():
+    """Get or create Kafka producer"""
+    global kafka_producer
+    if kafka_producer is None:
+        kafka_brokers = os.getenv("KAFKA_BROKERS", "localhost:9092")
+        kafka_producer = AIOKafkaProducer(
+            bootstrap_servers=kafka_brokers,
+            value_serializer=lambda v: json.dumps(v).encode('utf-8')
+        )
+        await kafka_producer.start()
+    return kafka_producer
+
+async def close_kafka_producer():
+    """Close Kafka producer on shutdown"""
+    global kafka_producer
+    if kafka_producer:
+        await kafka_producer.stop()
+        kafka_producer = None
 
 router = APIRouter(prefix="/api", tags=["chat"])
 
@@ -104,7 +130,7 @@ async def save_chat_message(user_ip: str, user_msg: str, assistant_msg: str, ani
 @router.post("/chat")
 @trace_llm_call(name="anime_chat", tags=["chat", "anime"])
 async def chat(request: ChatRequest, req: Request) -> ChatResponse:
-    """Chat with LangGraph agent. Instrumented with Langfuse tracing."""
+    """Chat with LangGraph agent. Publishes to Kafka for async processing."""
 
     user_ip = get_client_ip(req)
     set_user_context(user_ip, tags=["anime-portal"])
@@ -147,10 +173,25 @@ async def chat(request: ChatRequest, req: Request) -> ChatResponse:
 
     log_trace_event("references_found", {"count": len(anime_references)})
 
-    # Save to chat history
-    await save_chat_message(user_ip, request.message, response_text, request.anime_id, anime_references)
+    # Publish to Kafka for async processing (DB save, search indexing)
+    try:
+        producer = await get_kafka_producer()
+        message_id = str(uuid.uuid4())
 
-    log_trace_event("chat_saved", {"status": "success"})
+        event = {
+            "message_id": message_id,
+            "user_id": user_ip,
+            "message": request.message,
+            "response": response_text,
+            "anime_references": [{"title": ref.title, "id": ref.id} for ref in anime_references],
+            "anime_context_id": request.anime_id,
+            "timestamp": datetime.now().isoformat()
+        }
+
+        await producer.send_and_wait("chat.messages", event)
+        log_trace_event("kafka_published", {"message_id": message_id})
+    except Exception as e:
+        log_trace_event("kafka_error", {"error": str(e)})
 
     return ChatResponse(
         response=response_text,

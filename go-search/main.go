@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"anime-search-service/cache"
+	"anime-search-service/consumers"
 	"anime-search-service/db"
 	"anime-search-service/handlers"
 	"anime-search-service/monitoring"
@@ -56,15 +57,20 @@ func main() {
 	router.GET("/api/search/history", searchHandlers.GetSearchHistory)
 	router.GET("/api/search/stats", searchHandlers.GetSearchStats)
 
+	// Start Kafka consumers in a separate goroutine
+	go func() {
+		consumers.StartConsumers(dbConn)
+	}()
+
 	// Start server
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8001"
 	}
 
-	log.Printf("Starting Go search service on port %s", port)
+	log.Printf("🚀 Starting Go search service on port %s", port)
 	if err := router.Run(":" + port); err != nil {
 		sentry.CaptureException(err)
-		log.Fatalf("Server failed to start: %v", err)
+		log.Fatalf("❌ Server failed to start: %v", err)
 	}
 }

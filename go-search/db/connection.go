@@ -92,6 +92,11 @@ func (c *Connection) GetSearchStats() (map[string]interface{}, error) {
 	}, nil
 }
 
+// DB returns the underlying *sql.DB connection
+func (c *Connection) DB() *sql.DB {
+	return c.db
+}
+
 // Close closes the database connection
 func (c *Connection) Close() error {
 	return c.db.Close()

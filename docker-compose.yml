@@ -52,6 +52,21 @@ services:
       - ./backend:/app
     command: python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
+  redpanda:
+    image: redpandadata/redpanda:latest
+    container_name: anime_kafka
+    command: redpanda start --overprovisioned --smp 1 --memory 1G --reserve-memory 0M --node-id 0 --check=false
+    environment:
+      REDPANDA_ADVERTISED_KAFKA_API_ADDRESSES: redpanda:29092
+    ports:
+      - "9092:9092"      # Kafka API
+      - "9644:9644"      # Admin API
+    healthcheck:
+      test: ["CMD", "rpk", "cluster", "info"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   go-search:
     build:
       context: ./go-search
@@ -60,6 +75,7 @@ services:
     environment:
       DATABASE_URL: postgres://postgres:password@postgres:5432/anime_db
       REDIS_URL: redis://redis:6379
+      KAFKA_BROKERS: redpanda:29092
       SENTRY_DSN: ${SENTRY_DSN}
       POSTHOG_API_KEY: ${POSTHOG_API_KEY}
       PORT: 8001
@@ -70,6 +86,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      redpanda:
         condition: service_healthy
     volumes:
       - ./go-search:/app

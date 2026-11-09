@@ -56,15 +56,27 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize observability on startup"""
+    """Initialize observability and Kafka on startup"""
     logging.info("🚀 Anime Portal API Starting")
     logging.info(f"📊 Langfuse Dashboard: {get_dashboard_url()}")
 
+    # Initialize Kafka producer (lazy loads on first use)
+    from app.routes.chat import get_kafka_producer
+    try:
+        producer = await get_kafka_producer()
+        logging.info("✅ Kafka producer initialized")
+    except Exception as e:
+        logging.warning(f"⚠️ Kafka not available: {e}")
+
 @app.on_event("shutdown")
 async def shutdown_event():
-    """Flush observability traces on shutdown"""
+    """Flush observability traces and close Kafka on shutdown"""
     logging.info("🛑 Shutting down - flushing traces")
     flush_traces()
+
+    from app.routes.chat import close_kafka_producer
+    await close_kafka_producer()
+    logging.info("✅ Kafka producer closed")
 
 @app.get("/health")
 async def health():
