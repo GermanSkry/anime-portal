@@ -5,6 +5,7 @@ from typing import Optional
 from app.utils.claude_agent import chat_with_claude
 import psycopg
 from app.config import settings
+import re
 
 router = APIRouter(prefix="/api", tags=["chat"])
 
@@ -192,5 +193,102 @@ async def get_chat_history(req: Request, limit: int = Query(20, ge=1, le=100), a
                     created_at=str(r[5])
                 ))
             return result
+    finally:
+        await conn.close()
+
+class AnimeSearchResult(BaseModel):
+    id: int
+    title_english: str
+    title: str
+    rating: float
+    year: int
+    genres: list
+    cover_image: str
+    relevance_score: float
+
+def calculate_similarity(title: str, query: str) -> float:
+    """Calculate fuzzy similarity score"""
+    t = title.lower()
+    q = query.lower()
+
+    # Exact match
+    if t == q:
+        return 100
+
+    # Starts with
+    if t.startswith(q):
+        return 80
+
+    # Substring match
+    if q in t:
+        return 60
+
+    # Word boundary (split by space, punctuation)
+    words = re.split(r'[\s;:\-.,()]+', t)
+    if q in words:
+        return 75
+    if any(w.startswith(q) for w in words):
+        return 65
+
+    # Fuzzy: chars in order
+    matches = 0
+    q_idx = 0
+    for i in range(len(t)):
+        if q_idx < len(q) and t[i] == q[q_idx]:
+            matches += 1
+            q_idx += 1
+
+    if q_idx == len(q):
+        return max(40, (matches / len(t)) * 50)
+
+    return 0
+
+@router.get("/search/anime")
+async def search_anime(q: str = Query("", min_length=1), limit: int = Query(10, ge=1, le=50)):
+    """Search anime by title, genres, or year"""
+    conn = await psycopg.AsyncConnection.connect(settings.database_url)
+
+    try:
+        async with conn.cursor() as cur:
+            # Get all anime (we'll score on backend)
+            await cur.execute("""
+                SELECT id, title_english, title, rating, year, genres, cover_image
+                FROM anime
+                ORDER BY rating DESC
+                LIMIT 200
+            """)
+
+            rows = await cur.fetchall()
+            results = []
+
+            for row in rows:
+                anime_id, title_eng, title_jp, rating, year, genres, cover = row
+
+                # Calculate relevance score
+                title_score = calculate_similarity(title_eng or title_jp or "", q)
+                year_score = 30 if str(year) == q else 0
+                genre_score = 30 if genres and any(g.lower().startswith(q.lower()) for g in genres) else 0
+
+                total_score = max(title_score, year_score, genre_score)
+
+                # Include if any match
+                if total_score > 0:
+                    results.append({
+                        'anime': AnimeSearchResult(
+                            id=anime_id,
+                            title_english=title_eng or "",
+                            title=title_jp or "",
+                            rating=float(rating or 0),
+                            year=year or 0,
+                            genres=genres or [],
+                            cover_image=cover or "",
+                            relevance_score=total_score
+                        ),
+                        'score': total_score
+                    })
+
+            # Sort by score and return top results
+            results.sort(key=lambda x: x['score'], reverse=True)
+            return [r['anime'] for r in results[:limit]]
     finally:
         await conn.close()

@@ -72,71 +72,31 @@ export default function Browse() {
     loadAnime()
   }, [])
 
-  const calculateSimilarity = (str, query) => {
-    const s = str.toLowerCase()
-    const q = query.toLowerCase()
-
-    // Exact match
-    if (s === q) return 100
-
-    // Starts with query
-    if (s.startsWith(q)) return 80
-
-    // Contains query as substring
-    if (s.includes(q)) return 60
-
-    // Word boundary match (e.g., "gate" matches "Steins;Gate")
-    const words = s.split(/[\s;:\-.,()]+/)
-    if (words.some(w => w === q)) return 75
-    if (words.some(w => w.startsWith(q))) return 65
-
-    // Fuzzy: count matching characters in order
-    let matches = 0
-    let qIdx = 0
-    for (let i = 0; i < s.length && qIdx < q.length; i++) {
-      if (s[i] === q[qIdx]) {
-        matches++
-        qIdx++
-      }
-    }
-
-    if (qIdx === q.length) {
-      // All query chars found in order
-      return Math.max(40, (matches / s.length) * 50)
-    }
-
-    return 0
-  }
-
-  const handleSearch = () => {
+  const handleSearch = async () => {
     if (!searchQuery.trim()) {
-      // If search is empty, reset to default view
       handleClearSearch()
       return
     }
 
-    const query = searchQuery.toLowerCase()
+    try {
+      setLoading(true)
+      const response = await fetch(
+        `http://localhost:8000/api/search/anime?q=${encodeURIComponent(searchQuery)}&limit=20`
+      )
+      const results = await response.json()
 
-    // Score and filter anime
-    const scored = allAnime
-      .map(anime => ({
-        anime,
-        titleScore: calculateSimilarity(anime.title_english || anime.name || '', query),
-        genreScore: anime.genres?.some(g => g.toLowerCase().includes(query)) ? 30 : 0,
-        yearScore: String(anime.year).includes(query) ? 25 : 0
-      }))
-      .filter(item => item.titleScore > 0 || item.genreScore > 0 || item.yearScore > 0)
-      .sort((a, b) => (b.titleScore + b.genreScore + b.yearScore) - (a.titleScore + a.genreScore + a.yearScore))
-
-    const filtered = scored.map(item => item.anime)
-
-    setAnimeData({
-      best: filtered.slice(0, 8),
-      new: [],
-      action: [],
-      drama: [],
-      psychological: [],
-    })
+      setAnimeData({
+        best: results,
+        new: [],
+        action: [],
+        drama: [],
+        psychological: [],
+      })
+    } catch (error) {
+      console.error('Search error:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleClearSearch = () => {
@@ -157,32 +117,30 @@ export default function Browse() {
     })
   }
 
-  const handleInputChange = (e) => {
+  const handleInputChange = async (e) => {
     const query = e.target.value
     setSearchQuery(query)
 
-    // Auto-search as user types
     if (query.trim()) {
-      // Trigger search with the new query
-      const queryLower = query.toLowerCase()
-      const scored = allAnime
-        .map(anime => ({
-          anime,
-          titleScore: calculateSimilarity(anime.title_english || anime.name || '', query),
-          genreScore: anime.genres?.some(g => g.toLowerCase().includes(queryLower)) ? 30 : 0,
-          yearScore: String(anime.year).includes(queryLower) ? 25 : 0
-        }))
-        .filter(item => item.titleScore > 0 || item.genreScore > 0 || item.yearScore > 0)
-        .sort((a, b) => (b.titleScore + b.genreScore + b.yearScore) - (a.titleScore + a.genreScore + a.yearScore))
-
-      const filtered = scored.map(item => item.anime)
-      setAnimeData({
-        best: filtered.slice(0, 8),
-        new: [],
-        action: [],
-        drama: [],
-        psychological: [],
-      })
+      // Auto-search via backend
+      try {
+        setLoading(true)
+        const response = await fetch(
+          `http://localhost:8000/api/search/anime?q=${encodeURIComponent(query)}&limit=20`
+        )
+        const results = await response.json()
+        setAnimeData({
+          best: results,
+          new: [],
+          action: [],
+          drama: [],
+          psychological: [],
+        })
+      } catch (error) {
+        console.error('Search error:', error)
+      } finally {
+        setLoading(false)
+      }
     } else {
       // Empty query - show default view
       handleClearSearch()
