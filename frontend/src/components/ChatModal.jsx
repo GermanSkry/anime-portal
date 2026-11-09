@@ -34,7 +34,12 @@ export default function ChatModal({ isOpen, onClose, animeContext = null }) {
 
   const loadChatHistory = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/chat/history?limit=10')
+      // If anime context provided, load history for that anime only
+      const url = animeContext
+        ? `http://localhost:8000/api/chat/history?limit=20&anime_id=${animeContext.id}`
+        : 'http://localhost:8000/api/chat/history?limit=10'
+
+      const response = await fetch(url)
       if (response.ok) {
         const data = await response.json()
         if (data.length > 0) {

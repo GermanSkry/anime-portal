@@ -145,20 +145,31 @@ Never write long paragraphs. Keep it punchy and actionable."""
     )
 
 @router.get("/chat/history")
-async def get_chat_history(req: Request, limit: int = Query(20, ge=1, le=100)):
-    """Get chat history for this user (by IP)"""
+async def get_chat_history(req: Request, limit: int = Query(20, ge=1, le=100), anime_id: int = None):
+    """Get chat history for this user (by IP), optionally filtered by anime_id"""
     user_ip = get_client_ip(req)
     conn = await psycopg.AsyncConnection.connect(settings.database_url)
 
     try:
         async with conn.cursor() as cur:
-            await cur.execute("""
-                SELECT id, user_message, assistant_response, anime_context_id, anime_references, created_at
-                FROM chat_history
-                WHERE user_ip = %s
-                ORDER BY created_at DESC
-                LIMIT %s
-            """, (user_ip, limit))
+            if anime_id:
+                # Filter by specific anime context
+                await cur.execute("""
+                    SELECT id, user_message, assistant_response, anime_context_id, anime_references, created_at
+                    FROM chat_history
+                    WHERE user_ip = %s AND anime_context_id = %s
+                    ORDER BY created_at DESC
+                    LIMIT %s
+                """, (user_ip, anime_id, limit))
+            else:
+                # General chat history (no anime context)
+                await cur.execute("""
+                    SELECT id, user_message, assistant_response, anime_context_id, anime_references, created_at
+                    FROM chat_history
+                    WHERE user_ip = %s AND anime_context_id IS NULL
+                    ORDER BY created_at DESC
+                    LIMIT %s
+                """, (user_ip, limit))
 
             rows = await cur.fetchall()
             result = []
