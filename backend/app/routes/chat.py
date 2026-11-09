@@ -1,8 +1,8 @@
-"""Chat endpoint with Claude agent + chat history"""
+"""Chat endpoint with LangGraph agent + chat history"""
 from fastapi import APIRouter, Request, Query
 from pydantic import BaseModel
 from typing import Optional
-from app.utils.claude_agent import chat_with_claude
+from app.utils.langgraph_agent import run_agent
 import psycopg
 from app.config import settings
 import re
@@ -102,40 +102,40 @@ async def save_chat_message(user_ip: str, user_msg: str, assistant_msg: str, ani
 
 @router.post("/chat")
 async def chat(request: ChatRequest, req: Request) -> ChatResponse:
-    """Chat with Claude about anime. Augments with database search results."""
-    messages = [
-        {
-            "role": "system",
-            "content": """You are a concise anime recommendation assistant. Keep responses SHORT and direct (2-3 sentences max).
+    """Chat with LangGraph agent about anime."""
 
-When recommending anime:
-- List 3-5 titles max with brief 1-line descriptions
-- Format: "**Title** - short description"
-- Be conversational but brief
-- Use database results when provided
-- For trending/upcoming: search web and mention release info if available
-
-Never write long paragraphs. Keep it punchy and actionable."""
-        }
-    ]
+    # Build message history
+    messages = []
 
     if request.history:
-        messages.extend([
-            {"role": m.role, "content": m.content}
-            for m in request.history
-        ])
+        for m in request.history:
+            messages.append({
+                "role": m.role,
+                "content": m.content
+            })
 
+    # Add current message
     messages.append({
         "role": "user",
         "content": request.message
     })
 
-    response_text = await chat_with_claude(messages)
+    # Run LangGraph agent
+    result = await run_agent(messages)
+    response_text = result["response"]
+    tool_calls = result["tool_calls"]
+    anime_references_list = result["anime_references"]
 
-    # Extract anime references from response
-    anime_references = await extract_anime_references(response_text)
+    # Convert to AnimeReference objects
+    anime_references = []
+    for ref in anime_references_list:
+        # Look up anime ID
+        title = ref.get("title", "")
+        anime_id = await lookup_anime_by_title(title)
+        if anime_id:
+            anime_references.append(AnimeReference(title=title, id=anime_id))
 
-    # Save to chat history (fire and forget)
+    # Save to chat history
     user_ip = get_client_ip(req)
     await save_chat_message(user_ip, request.message, response_text, request.anime_id, anime_references)
 
@@ -144,6 +144,20 @@ Never write long paragraphs. Keep it punchy and actionable."""
         anime_ids=[ref.id for ref in anime_references],
         anime_references=anime_references
     )
+
+async def lookup_anime_by_title(title: str) -> Optional[int]:
+    """Look up anime ID by title"""
+    conn = await psycopg.AsyncConnection.connect(settings.database_url)
+    try:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                "SELECT id FROM anime WHERE LOWER(title_english) ILIKE LOWER(%s) OR LOWER(title) ILIKE LOWER(%s) LIMIT 1",
+                (f"%{title}%", f"%{title}%")
+            )
+            result = await cur.fetchone()
+            return result[0] if result else None
+    finally:
+        await conn.close()
 
 @router.get("/chat/history")
 async def get_chat_history(req: Request, limit: int = Query(20, ge=1, le=100), anime_id: int = None):
