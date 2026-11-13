@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import './Explore.css'
-import { searchAPI, animeAPI } from '../services/api'
+import { animeAPI } from '../services/api'
 
 // Empty default - will be populated from API
 const defaultResults = []
@@ -11,7 +11,6 @@ export default function Explore() {
   const [allResults, setAllResults] = useState(defaultResults) // All unfiltered results
   const [results, setResults] = useState(defaultResults)  // Filtered results
   const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState('')
   const [openPopup, setOpenPopup] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 5
@@ -61,25 +60,6 @@ export default function Explore() {
     }
     loadRandomAnime()
   }, [])
-
-  const handleSearch = async (query) => {
-    if (!query.trim()) return
-
-    setLoading(true)
-    try {
-      const data = await searchAPI.anime(query)
-      if (Array.isArray(data)) {
-        setAllResults(data)
-        setResults(data)
-        setFilters({ ratingMin: 0, ratingMax: 10, genres: [], yearMin: 1970, yearMax: 2026, studio: 'Any Studio' }) // Reset filters
-        setOpenPopup(null)
-      }
-    } catch (error) {
-      console.error('Search error:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   // Apply filters whenever filter state changes
   useEffect(() => {

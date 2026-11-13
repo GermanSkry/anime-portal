@@ -6,7 +6,8 @@ export const animeAPI = {
   getAll: async (limit = 20) => {
     try {
       const res = await fetch(`${API_BASE}/api/anime?limit=${limit}`)
-      return await res.json()
+      const data = await res.json()
+      return Array.isArray(data) ? data : []
     } catch (error) {
       console.error('Error fetching anime:', error)
       return []
@@ -16,6 +17,8 @@ export const animeAPI = {
   getById: async (id) => {
     try {
       const res = await fetch(`${API_BASE}/api/anime/${id}`)
+      // 404 and 503 return an error object, which callers would render as a blank anime
+      if (!res.ok) return null
       return await res.json()
     } catch (error) {
       console.error('Error fetching anime:', error)
@@ -92,6 +95,19 @@ export const searchAPI = {
       console.error('Error in anime search:', error)
       return []
     }
+  },
+
+  // full-text + filter search on the Python backend; /api/search/anime is the Go service's POST route, not this one
+  animeByTitle: async (query, limit = 20) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(query)}&limit=${limit}`)
+      const data = await res.json()
+      // an error response is an object, and callers render this straight into a list
+      return Array.isArray(data) ? data : []
+    } catch (error) {
+      console.error('Error in anime title search:', error)
+      return []
+    }
   }
 }
 
@@ -116,42 +132,13 @@ export const chatAPI = {
     }
   },
 
-  getHistory: async () => {
+  getHistory: async (animeId = null, limit = 20) => {
     try {
-      const res = await fetch(`${API_BASE}/api/chat/history?limit=20`)
+      const query = animeId ? `?limit=${limit}&anime_id=${animeId}` : `?limit=${limit}`
+      const res = await fetch(`${API_BASE}/api/chat/history${query}`)
       return await res.json()
     } catch (error) {
       console.error('Error fetching chat history:', error)
-      return []
-    }
-  }
-}
-
-// Embedding API
-export const embeddingAPI = {
-  generate: async (text) => {
-    try {
-      const res = await fetch(`${API_BASE}/api/embedding`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text })
-      })
-      return await res.json()
-    } catch (error) {
-      console.error('Error generating embedding:', error)
-      return null
-    }
-  }
-}
-
-// Recommendation API
-export const recommendAPI = {
-  getByGenre: async (genre, limit = 10) => {
-    try {
-      const res = await fetch(`${API_BASE}/api/recommend?preference=${encodeURIComponent(genre)}&limit=${limit}`)
-      return await res.json()
-    } catch (error) {
-      console.error('Error getting recommendations:', error)
       return []
     }
   }

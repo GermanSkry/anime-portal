@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import './Browse.css'
-import { animeAPI, recommendAPI } from '../services/api'
+import { animeAPI, searchAPI } from '../services/api'
 
 const defaultAnimeData = {
   best: [],
@@ -80,10 +80,7 @@ export default function Browse() {
 
     try {
       setLoading(true)
-      const response = await fetch(
-        `http://localhost:8000/api/search/anime?q=${encodeURIComponent(searchQuery)}&limit=20`
-      )
-      const results = await response.json()
+      const results = await searchAPI.animeByTitle(searchQuery)
 
       setAnimeData({
         best: results,
@@ -125,10 +122,7 @@ export default function Browse() {
       // Auto-search via backend
       try {
         setLoading(true)
-        const response = await fetch(
-          `http://localhost:8000/api/search/anime?q=${encodeURIComponent(query)}&limit=20`
-        )
-        const results = await response.json()
+        const results = await searchAPI.animeByTitle(query)
         setAnimeData({
           best: results,
           new: [],
@@ -172,7 +166,13 @@ export default function Browse() {
         </div>
       </div>
 
-      {Object.entries(animeData).map(([section, animes]) => {
+      {loading && (
+        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
+          Loading results...
+        </div>
+      )}
+
+      {!loading && Object.entries(animeData).map(([section, animes]) => {
         const sectionGenreMap = {
           action: 'Action',
           drama: 'Drama',

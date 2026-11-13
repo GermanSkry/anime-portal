@@ -11,10 +11,6 @@ export default function Chat() {
   const [loading, setLoading] = useState(false)
   const [history, setHistory] = useState([])
 
-  useEffect(() => {
-    loadChatHistory()
-  }, [])
-
   const loadChatHistory = async () => {
     try {
       const data = await chatAPI.getHistory()
@@ -26,6 +22,10 @@ export default function Chat() {
       setHistory([])
     }
   }
+
+  useEffect(() => {
+    loadChatHistory()
+  }, [])
 
   const loadHistoryChat = (item) => {
     // Load a previous conversation from history
