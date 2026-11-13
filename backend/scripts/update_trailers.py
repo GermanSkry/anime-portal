@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Update anime trailers from anime.json"""
-import json
 import asyncio
-from pathlib import Path
+import json
 import sys
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import psycopg
+
 from app.config import settings
 
 DATA_DIR = Path(__file__).parent.parent / "data"

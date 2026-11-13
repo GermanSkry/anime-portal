@@ -1,13 +1,14 @@
+import logging
+import os
+
+import sentry_sdk
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
-import os
-import logging
-from dotenv import load_dotenv
-import sentry_sdk
-from sentry_sdk.integrations.logging import LoggingIntegration
 from posthog import Posthog
-from app.utils.langfuse_tracer import get_dashboard_url, flush_traces
+from sentry_sdk.integrations.logging import LoggingIntegration
+
+from app.utils.langfuse_tracer import flush_traces, get_dashboard_url
 
 load_dotenv()
 
@@ -28,6 +29,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
+logger = logging.getLogger(__name__)
 
 # Initialize PostHog for analytics
 posthog_api_key = os.getenv("POSTHOG_API_KEY", "")
@@ -41,7 +43,7 @@ else:
     posthog = None
 
 # Import routers
-from app.routes import anime, characters, stats, search, recommend, chat, embeddings
+from app.routes import anime, characters, chat, embeddings, recommend, search, stats  # noqa: E402 - must follow Sentry init above
 
 app = FastAPI(title="Anime Portal API", version="0.1.0")
 
@@ -57,26 +59,26 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     """Initialize observability and Kafka on startup"""
-    logging.info("🚀 Anime Portal API Starting")
-    logging.info(f"📊 Langfuse Dashboard: {get_dashboard_url()}")
+    logger.info("🚀 Anime Portal API Starting")
+    logger.info(f"📊 Langfuse Dashboard: {get_dashboard_url()}")
 
     # Initialize Kafka producer (lazy loads on first use)
     from app.routes.chat import get_kafka_producer
     try:
-        producer = await get_kafka_producer()
-        logging.info("✅ Kafka producer initialized")
+        await get_kafka_producer()
+        logger.info("✅ Kafka producer initialized")
     except Exception as e:
-        logging.warning(f"⚠️ Kafka not available: {e}")
+        logger.warning(f"⚠️ Kafka not available: {e}")
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Flush observability traces and close Kafka on shutdown"""
-    logging.info("🛑 Shutting down - flushing traces")
+    logger.info("🛑 Shutting down - flushing traces")
     flush_traces()
 
     from app.routes.chat import close_kafka_producer
     await close_kafka_producer()
-    logging.info("✅ Kafka producer closed")
+    logger.info("✅ Kafka producer closed")
 
 @app.get("/health")
 async def health():
@@ -112,5 +114,5 @@ app.include_router(anime.router)
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    port = int(os.getenv("PORT", "8000"))
+    uvicorn.run(app, host="0.0.0.0", port=port)  # noqa: S104 - binds all interfaces on purpose, it runs in a container

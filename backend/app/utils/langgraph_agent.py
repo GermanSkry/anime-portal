@@ -1,18 +1,19 @@
 """LangGraph-based agentic chat system for anime recommendations"""
 
-from langgraph.graph import StateGraph, END
-from typing import TypedDict, List, Optional
-import json
 import re
+from typing import TypedDict
+
+from langgraph.graph import END, StateGraph
+
 
 # ============= STATE DEFINITION =============
 class AgentState(TypedDict):
     """Agent state that persists through execution"""
-    messages: List[dict]  # Conversation history
-    tool_calls: List[dict]  # Tools to execute
-    tool_results: List[dict]  # Results from tool execution
+    messages: list[dict]  # Conversation history
+    tool_calls: list[dict]  # Tools to execute
+    tool_results: list[dict]  # Results from tool execution
     final_response: str  # Final response to user
-    anime_references: List[dict]  # Anime titles found in response
+    anime_references: list[dict]  # Anime titles found in response
 
 # ============= TOOL IMPLEMENTATIONS =============
 async def search_anime_db(query: str, limit: int = 5) -> str:
@@ -181,7 +182,7 @@ def build_agent():
 agent = build_agent()
 
 # ============= PUBLIC API =============
-async def run_agent(messages: List[dict]) -> dict:
+async def run_agent(messages: list[dict]) -> dict:
     """
     Run the agent with a conversation history
 

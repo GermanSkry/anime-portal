@@ -1,50 +1,26 @@
 #!/usr/bin/env python3
 """Ingest anime data into PostgreSQL with enhanced schema (Phase 1+2)"""
-import json
 import asyncio
-from pathlib import Path
+import json
 import sys
-import os
+from pathlib import Path
 
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import psycopg
+
 from app.config import settings
+from app.utils.embeddings import generate_embedding
 
 DATA_DIR = Path(__file__).parent.parent / "data"
 ANIME_FILE = DATA_DIR / "anime.json"
-
-async def generate_simple_embedding(text: str) -> list:
-    """Generate a simple embedding from text (placeholder)
-    In production, use: sentence-transformers, Claude embeddings, or OpenAI
-    For now, return a dummy 384-dim vector based on text hash
-    """
-    import hashlib
-
-    if not text:
-        return [0.0] * 384
-
-    # Simple deterministic hashing to 384 dimensions
-    hash_obj = hashlib.md5(text.encode())
-    seed = int(hash_obj.hexdigest(), 16)
-
-    # Generate pseudo-random values based on seed
-    import random
-    random.seed(seed)
-    embedding = [random.gauss(0, 1) for _ in range(384)]
-
-    # Normalize
-    magnitude = sum(x**2 for x in embedding) ** 0.5
-    embedding = [x / magnitude for x in embedding]
-
-    return embedding
 
 async def ingest_anime():
     """Load anime data into database with enhanced schema"""
     if not ANIME_FILE.exists():
         print(f"❌ Data file not found: {ANIME_FILE}")
-        print("   Run: python scripts/fetch_anime.py")
+        print("   Run: python scripts/fetch_anime_enhanced.py")
         return
 
     print(f"📥 Loading anime from {ANIME_FILE}...")
@@ -60,11 +36,8 @@ async def ingest_anime():
         async with conn.cursor() as cur:
             # Initialize DB schema
             print("🔧 Initializing database schema...")
-            try:
-                await cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
-            except Exception as e:
-                print(f"  ⚠️  pgvector extension not available, continuing without it")
-                await conn.rollback()
+            # required: /api/search/semantic queries plot_embedding with the pgvector `<=>` operator
+            await cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
 
             # Main anime table (enhanced with trailers - Phase 1.5)
             await cur.execute("""
@@ -144,12 +117,15 @@ async def ingest_anime():
                 );
             """)
 
-            # Embeddings for semantic search (simplified without pgvector)
+            # Embeddings for semantic search; 384 dims = all-MiniLM-L6-v2, the model app/utils/embeddings.py loads.
+            # Dropped first: older databases have this column as TEXT, and CREATE IF NOT EXISTS would keep it,
+            # which silently breaks the `<=>` query in /api/search/semantic. The script rebuilds every row anyway.
+            await cur.execute("DROP TABLE IF EXISTS embeddings;")
             await cur.execute("""
                 CREATE TABLE IF NOT EXISTS embeddings (
                     id SERIAL PRIMARY KEY,
                     anime_id INTEGER UNIQUE NOT NULL REFERENCES anime(id) ON DELETE CASCADE,
-                    plot_embedding TEXT,
+                    plot_embedding vector(384),
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
             """)
@@ -167,6 +143,52 @@ async def ingest_anime():
                 );
             """)
 
+            # Runtime tables. Nothing here is derived from anime.json, so the wipe below
+            # leaves them alone. No foreign key to anime(id): re-ingesting replaces every
+            # anime row, and that must not erase a user's chat or search history.
+            await cur.execute("""
+                CREATE TABLE IF NOT EXISTS chat_history (
+                    id SERIAL PRIMARY KEY,
+                    user_ip VARCHAR(45),
+                    user_message TEXT NOT NULL,
+                    assistant_response TEXT NOT NULL,
+                    anime_context_id INTEGER,
+                    anime_references JSONB,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
+
+            await cur.execute("""
+                CREATE TABLE IF NOT EXISTS search_history (
+                    id SERIAL PRIMARY KEY,
+                    query TEXT NOT NULL,
+                    result_count INTEGER,
+                    query_type VARCHAR(50),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
+
+            # message_id is unique: the DB consumer reads it to skip messages Kafka redelivers
+            await cur.execute("""
+                CREATE TABLE IF NOT EXISTS processed_messages (
+                    id SERIAL PRIMARY KEY,
+                    topic VARCHAR(100) NOT NULL,
+                    message_id VARCHAR(100) NOT NULL UNIQUE,
+                    processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
+
+            # primary key doubles as the ON CONFLICT target the search indexer upserts on
+            await cur.execute("""
+                CREATE TABLE IF NOT EXISTS search_engagement (
+                    anime_id INTEGER NOT NULL,
+                    engagement_type VARCHAR(50) NOT NULL,
+                    count INTEGER DEFAULT 0,
+                    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (anime_id, engagement_type)
+                );
+            """)
+
             # Create indexes
             print("📑 Creating indexes...")
             await cur.execute("CREATE INDEX IF NOT EXISTS idx_anime_year ON anime(year);")
@@ -175,6 +197,8 @@ async def ingest_anime():
             await cur.execute("CREATE INDEX IF NOT EXISTS idx_anime_genres ON anime USING GIN(genres);")
             await cur.execute("CREATE INDEX IF NOT EXISTS idx_related_from ON related_anime(anime_id_from);")
             await cur.execute("CREATE INDEX IF NOT EXISTS idx_recommendations ON recommendations(anime_id, score DESC);")
+            await cur.execute("CREATE INDEX IF NOT EXISTS idx_chat_history_user ON chat_history(user_ip, created_at DESC);")
+            await cur.execute("CREATE INDEX IF NOT EXISTS idx_search_history_created ON search_history(created_at DESC);")
 
             # Clear existing data (for re-ingestion)
             print("🗑️  Clearing old data...")
@@ -182,7 +206,6 @@ async def ingest_anime():
             await cur.execute("DELETE FROM anime_characters;")
             await cur.execute("DELETE FROM characters;")
             await cur.execute("DELETE FROM related_anime;")
-            await cur.execute("DELETE FROM embeddings;")
             await cur.execute("DELETE FROM anime_studios;")
             await cur.execute("DELETE FROM anime;")
             await cur.execute("DELETE FROM studios;")
@@ -244,7 +267,7 @@ async def ingest_anime():
 
                     # Generate and store embedding
                     plot_text = anime.get("plot", "") or anime.get("title", "")
-                    embedding = await generate_simple_embedding(plot_text)
+                    embedding = await generate_embedding(plot_text)
                     embedding_str = "[" + ",".join(str(x) for x in embedding) + "]"
 
                     await cur.execute("""
@@ -271,12 +294,12 @@ async def ingest_anime():
             await cur.execute("SELECT COUNT(*) FROM embeddings;")
             embedding_count = (await cur.fetchone())[0]
 
-            print(f"\n✅ Database state:")
+            print("\n✅ Database state:")
             print(f"   Anime: {anime_count}")
             print(f"   Studios: {studios_count}")
             print(f"   Embeddings: {embedding_count}")
-            print(f"   Characters: 0 (will add in Phase 2)")
-            print(f"   Related Anime: 0 (will add in Phase 2)")
+            print("   Characters: 0 (will add in Phase 2)")
+            print("   Related Anime: 0 (will add in Phase 2)")
 
     finally:
         await conn.close()

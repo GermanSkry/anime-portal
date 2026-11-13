@@ -1,10 +1,9 @@
 """Langfuse integration for LLM observability and tracing"""
 
-from langfuse import Langfuse
-import os
 import logging
-import asyncio
-from functools import wraps
+import os
+
+from langfuse import Langfuse
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +17,7 @@ langfuse_client = Langfuse(
 # Check if Langfuse is actually enabled
 _is_enabled = bool(os.getenv("LANGFUSE_PUBLIC_KEY") and os.getenv("LANGFUSE_PUBLIC_KEY") != "pk_demo")
 
-def trace_llm_call(name: str = "llm_call", tags: list = None):
+def trace_llm_call(name: str = "llm_call", tags: list | None = None):
     """
     Decorator to trace LLM function calls with Langfuse.
     This is a lightweight decorator that logs trace events without wrapping FastAPI handlers.
@@ -37,7 +36,7 @@ def trace_llm_call(name: str = "llm_call", tags: list = None):
 
     return decorator
 
-def log_trace_event(event_name: str, data: dict = None):
+def log_trace_event(event_name: str, data: dict | None = None):
     """
     Log a trace event to Langfuse.
     Useful for tracking specific events within your LLM pipeline.
@@ -49,7 +48,7 @@ def log_trace_event(event_name: str, data: dict = None):
         data = {}
     logger.debug(f"[TRACE] {event_name}: {data}")
 
-def set_user_context(user_id: str, session_id: str = None, tags: list = None):
+def set_user_context(user_id: str, session_id: str | None = None, tags: list | None = None):
     """
     Set user context for tracing.
     Helps group traces by user and session.

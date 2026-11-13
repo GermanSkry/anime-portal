@@ -1,25 +1,29 @@
+
+import psycopg
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
-import psycopg
+
 from app.config import settings
 from app.utils.embeddings import generate_embedding
-from typing import Optional
 
 router = APIRouter(prefix="/api/search", tags=["search"])
 
 class AnimeSearchResponse(BaseModel):
     id: int
     title: str
-    rating: Optional[float]
+    name: str  # the Browse cards read `name`, same as /api/anime returns
+    title_english: str | None
+    cover_image: str | None
+    rating: float | None
     genres: list
-    year: Optional[int]
+    year: int | None
     studios: list
 
 class SemanticSearchResponse(BaseModel):
     id: int
     title: str
-    plot: Optional[str]
-    rating: Optional[float]
+    plot: str | None
+    rating: float | None
     similarity: float
     genres: list
 
@@ -39,7 +43,7 @@ async def search_anime(
     try:
         async with conn.cursor() as cur:
             query = """
-                SELECT a.id, a.title, a.rating, a.genres, a.year,
+                SELECT a.id, a.title, a.title_english, a.cover_image, a.rating, a.genres, a.year,
                        COALESCE(array_agg(s.name) FILTER (WHERE s.name IS NOT NULL), '{}') as studios
                 FROM anime a
                 LEFT JOIN anime_studios asas ON a.id = asas.anime_id
@@ -75,10 +79,18 @@ async def search_anime(
                 params.append([f"%{st}%" for st in studio_list])
 
             query += """
-                GROUP BY a.id, a.title, a.rating, a.genres, a.year
-                ORDER BY a.rating DESC NULLS LAST
-                LIMIT %s OFFSET %s
+                GROUP BY a.id, a.title, a.title_english, a.cover_image, a.rating, a.genres, a.year
             """
+            if q:
+                # a title hit is what the searcher meant; a word buried in a plot is weaker,
+                # so "hunter" puts Hunter x Hunter above a higher-rated show that merely
+                # mentions a hunter in its synopsis
+                query += " ORDER BY (a.title ILIKE %s) DESC, a.rating DESC NULLS LAST"
+                params.append(search_term)
+            else:
+                query += " ORDER BY a.rating DESC NULLS LAST"
+
+            query += " LIMIT %s OFFSET %s"
             params.extend([limit, offset])
 
             await cur.execute(query, params)
@@ -88,10 +100,13 @@ async def search_anime(
                 AnimeSearchResponse(
                     id=r[0],
                     title=r[1],
-                    rating=r[2],
-                    genres=r[3] or [],
-                    year=r[4],
-                    studios=list(r[5]) if r[5] else []
+                    name=r[1],
+                    title_english=r[2],
+                    cover_image=r[3] or "",
+                    rating=r[4],
+                    genres=r[5] or [],
+                    year=r[6],
+                    studios=list(r[7]) if r[7] else []
                 )
                 for r in results
             ]
@@ -112,7 +127,7 @@ async def semantic_search(query_text: str = Query(..., min_length=1), limit: int
 
         async with conn.cursor() as cur:
             # pgvector cosine similarity search
-            await cur.execute(f"""
+            await cur.execute("""
                 SELECT a.id, a.title, a.plot, a.rating, a.genres,
                        1 - (e.plot_embedding <=> %s::vector) as similarity
                 FROM embeddings e

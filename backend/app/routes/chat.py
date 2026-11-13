@@ -1,17 +1,19 @@
 """Chat endpoint with LangGraph agent + Langfuse tracing + Kafka publishing"""
-from fastapi import APIRouter, Request, Query
-from pydantic import BaseModel
-from typing import Optional
-from app.utils.langgraph_agent import run_agent
-from app.utils.langfuse_tracer import trace_llm_call, set_user_context, log_trace_event
-import psycopg
-from app.config import settings
-import re
 import json
+import logging
+import os
+import re
 import uuid
 from datetime import datetime
+
+import psycopg
 from aiokafka import AIOKafkaProducer
-import os
+from fastapi import APIRouter, Query, Request
+from pydantic import BaseModel
+
+from app.config import settings
+from app.utils.langfuse_tracer import log_trace_event, set_user_context, trace_llm_call
+from app.utils.langgraph_agent import run_agent
 
 kafka_producer = None
 
@@ -20,11 +22,17 @@ async def get_kafka_producer():
     global kafka_producer
     if kafka_producer is None:
         kafka_brokers = os.getenv("KAFKA_BROKERS", "localhost:9092")
-        kafka_producer = AIOKafkaProducer(
+        producer = AIOKafkaProducer(
             bootstrap_servers=kafka_brokers,
             value_serializer=lambda v: json.dumps(v).encode('utf-8')
         )
-        await kafka_producer.start()
+        # only cache after a successful start, otherwise every later call reuses a dead producer
+        try:
+            await producer.start()
+        except Exception:
+            await producer.stop()
+            raise
+        kafka_producer = producer
     return kafka_producer
 
 async def close_kafka_producer():
@@ -34,6 +42,8 @@ async def close_kafka_producer():
         await kafka_producer.stop()
         kafka_producer = None
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api", tags=["chat"])
 
 class ChatMessage(BaseModel):
@@ -42,8 +52,8 @@ class ChatMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     message: str
-    history: Optional[list[ChatMessage]] = None
-    anime_id: Optional[int] = None
+    history: list[ChatMessage] | None = None
+    anime_id: int | None = None
 
 class AnimeReference(BaseModel):
     title: str
@@ -58,7 +68,7 @@ class ChatHistoryItem(BaseModel):
     id: int
     user_message: str
     assistant_response: str
-    anime_context_id: Optional[int]
+    anime_context_id: int | None
     anime_references: list[AnimeReference] = []
     created_at: str
 
@@ -108,10 +118,8 @@ async def extract_anime_references(response_text: str) -> list[AnimeReference]:
 
     return references
 
-async def save_chat_message(user_ip: str, user_msg: str, assistant_msg: str, anime_id: Optional[int] = None, anime_references: list[AnimeReference] = None):
+async def save_chat_message(user_ip: str, user_msg: str, assistant_msg: str, anime_id: int | None = None, anime_references: list[AnimeReference] | None = None):
     """Save chat message to database"""
-    import json
-
     conn = await psycopg.AsyncConnection.connect(settings.database_url)
     try:
         async with conn.cursor() as cur:
@@ -123,7 +131,7 @@ async def save_chat_message(user_ip: str, user_msg: str, assistant_msg: str, ani
             """, (user_ip, user_msg, assistant_msg, anime_id, refs_json))
         await conn.commit()
     except Exception as e:
-        print(f"Error saving chat: {e}")
+        logger.error(f"Error saving chat: {e}", exc_info=True)
     finally:
         await conn.close()
 
@@ -191,7 +199,10 @@ async def chat(request: ChatRequest, req: Request) -> ChatResponse:
         await producer.send_and_wait("chat.messages", event)
         log_trace_event("kafka_published", {"message_id": message_id})
     except Exception as e:
+        # Kafka is the only route to chat_history, so write it here instead of losing it
+        logger.warning(f"Kafka publish failed, saving chat directly: {e}")
         log_trace_event("kafka_error", {"error": str(e)})
+        await save_chat_message(user_ip, request.message, response_text, request.anime_id, anime_references)
 
     return ChatResponse(
         response=response_text,
@@ -199,7 +210,7 @@ async def chat(request: ChatRequest, req: Request) -> ChatResponse:
         anime_references=anime_references
     )
 
-async def lookup_anime_by_title(title: str) -> Optional[int]:
+async def lookup_anime_by_title(title: str) -> int | None:
     """Look up anime ID by title"""
     conn = await psycopg.AsyncConnection.connect(settings.database_url)
     try:
@@ -214,7 +225,7 @@ async def lookup_anime_by_title(title: str) -> Optional[int]:
         await conn.close()
 
 @router.get("/chat/history")
-async def get_chat_history(req: Request, limit: int = Query(20, ge=1, le=100), anime_id: int = None):
+async def get_chat_history(req: Request, limit: int = Query(20, ge=1, le=100), anime_id: int | None = None):
     """Get chat history for this user (by IP), optionally filtered by anime_id"""
     user_ip = get_client_ip(req)
     conn = await psycopg.AsyncConnection.connect(settings.database_url)
@@ -245,12 +256,11 @@ async def get_chat_history(req: Request, limit: int = Query(20, ge=1, le=100), a
             for r in rows:
                 anime_refs = []
                 if r[4]:  # anime_references column
-                    import json
                     try:
                         refs_data = json.loads(r[4]) if isinstance(r[4], str) else r[4]
                         anime_refs = [AnimeReference(title=ref.get('title', ''), id=ref.get('id', 0)) for ref in refs_data]
-                    except:
-                        pass
+                    except (ValueError, TypeError, AttributeError) as e:
+                        logger.warning(f"Bad anime_references for chat row {r[0]}: {e}")
 
                 result.append(ChatHistoryItem(
                     id=r[0],

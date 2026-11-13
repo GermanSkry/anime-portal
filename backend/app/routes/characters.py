@@ -1,8 +1,9 @@
+
+import psycopg
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
-import psycopg
+
 from app.config import settings
-from typing import Optional
 
 router = APIRouter(prefix="/api/anime", tags=["characters"])
 
@@ -10,7 +11,7 @@ class CharacterResponse(BaseModel):
     id: int
     name: str
     role: str
-    image_url: Optional[str]
+    image_url: str | None
 
 @router.get("/{anime_id}/characters")
 async def get_anime_characters(anime_id: int):
@@ -45,7 +46,7 @@ async def get_anime_characters(anime_id: int):
 @router.get("/{anime_id}/related")
 async def get_related_anime(
     anime_id: int,
-    relationship_type: Optional[str] = Query(None, regex="^(SEQUEL|PREQUEL|SPIN_OFF|SIDE_STORY)$")
+    relationship_type: str | None = Query(None, regex="^(SEQUEL|PREQUEL|SPIN_OFF|SIDE_STORY)$")
 ):
     """Get related anime (sequels, prequels, spin-offs)"""
     conn = await psycopg.AsyncConnection.connect(settings.database_url)
