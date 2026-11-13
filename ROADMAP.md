@@ -1,493 +1,83 @@
-# Anime Portal: Complete Roadmap
+# Roadmap
 
-## Current Status: Phase 2 🚀 IN PROGRESS (Chat + Refinement)
+Open work only. What is already built is in [HISTORY.md](HISTORY.md).
 
-### Phase 2: UI/UX Polish & Feature Completion
-
-**Completed:**
-- ✅ Database descriptions (plot field) populated for all 250 anime
-- ✅ API returns synopsis for all endpoints
-- ✅ Explore page filtering (Rating, Genre, Year, Studio)
-- ✅ Filter popups styled as visible bubbles
-- ✅ Anime names displaying correctly across all pages
-- ✅ Studio data from database arrays
-- ✅ Image loading with fallback gradients
-- ✅ Similar anime recommendations (Title page)
-- ✅ Trailers embedded (YouTube)
-- ✅ Image preloading on pagination
-- ✅ Chat page with messaging UI
-- ✅ IP-based chat history (PostgreSQL)
-- ✅ Typing animation indicator
-- ✅ Recent chats sidebar
-- ✅ Contextual chat on Title page (ChatModal)
-- ✅ Claude AI integration + web search (SerpAPI)
-
-**Suggested Work Order:**
-1. **Day 1-2:** Browse & Genre improvements → Similar anime (Quick wins, visual impact)
-2. **Day 3:** Title page features (Trailers, similar anime working)
-3. **Day 4:** Chat features (Requires UI work on Title page)
-4. **Day 5:** Polish & DevEx (Makefile, filter badges)
-
-**TODO (Grouped by Feature):**
-
-#### 1️⃣ Title Page Features (Backend + Frontend)
-- [ ] **Similar anime recommendations** — create backend endpoint to find similar anime (by genre, rating, year, studio) and wire up frontend
-  - Backend: `/api/anime/{id}/similar` endpoint with SQL scoring
-  - Frontend: Display 4-column grid of similar titles
-  - Metrics: Genre overlap, rating proximity, studio match
-- [ ] **Trailers display** — verify trailer_url is populated in DB, embed YouTube player on Title page
-
-#### 2️⃣ Explore Page Filtering (Frontend)
-- [ ] **Show applied filters as badges** — display active filter chips above results (e.g., "Action", "2020-2026", "8.5+")
-- [ ] **Test filter combinations** — verify Year filter + Rating filter work together in "Recent" section
-
-#### 3️⃣ Browse Page & Genre Data (Backend + Frontend)
-- [ ] **Fix genres data consistency** — ensure all 250 anime have proper genres populated from database
-- [ ] **Add more genre categories** — expand Browse page from just "Action" to: Comedy, Drama, Romance, Dark Fantasy, Sci-Fi, Adventure
-  - Create sections dynamically based on genre counts
-  - Fallback to top-rated if genre has <4 anime
-
-#### 4️⃣ Chat Features (Backend + Frontend) - MOSTLY DONE, NEEDS FIXES
-- ✅ **Functional chat on Title page** — ChatModal component working
-- ✅ **Chat session history** — IP-based history saving to PostgreSQL working
-- ✅ **User chat history** — Recent chats sidebar showing (when loading works)
-- 🔧 **FIXES NEEDED:**
-  - [ ] **Markdown rendering** — `**bold**` text not rendering (Claude response format changed)
-  - [ ] **Anime links** — No clickable links to Title page even when anime names detected
-  - [ ] **Chat continuation** — Previous messages not loading into current chat window
-  - [ ] **New Chat button** — Add button to start fresh conversation
-  - [ ] **Title page chat** — Test chat modal on Title page and ensure it works properly
-  - [ ] **Response format** — Claude sometimes uses different formats (Letter - description) instead of `**Title** - description`
-
-#### 5️⃣ Search Integration (Backend)
-- [ ] **Web search debugging** — check how web search works (currently appears non-functional)
-  - Verify SerpAPI connection
-  - Test `/api/search/web` endpoint
-  - Debug response parsing
-
-#### 6️⃣ Developer Experience (Automation)
-- [ ] **Create Makefile** — add easy start commands:
-  ```makefile
-  make dev          # Start frontend + backend + db
-  make backend      # Start backend only (port 8000)
-  make frontend     # Start frontend only (port 5175)
-  make db-up        # Start PostgreSQL + Redis
-  make db-down      # Stop containers
-  make db-reset     # Reset data & re-ingest
-  ```
-
-**Notes:**
-- Backend restart needed after code changes (due to hot-reload timing)
-- pgvector extension not available in current PostgreSQL setup (removed from schema)
-- Mock data fallback when database query fails in anime.py routes
+Items carried over from the old roadmap were checked against the code first —
+similar-anime recommendations, trailer embedding, filter badges and the
+Makefile were all listed as outstanding but are implemented, so they are gone
+from this list.
 
 ---
 
-## Current Status: Phase 5 ✅ COMPLETE
-
-**Phase 4 Complete:**
-- 250 anime in PostgreSQL with vectors
-- Full-text search + semantic search endpoints
-- AI recommendations endpoint
-- **Smart chat with database-first + SerpAPI web search** ⭐
-- Real-time trending anime info
-
-**Phase 5 Complete Summary (Go Microservice + Caching + Monitoring):**
-- ✅ Go project structure complete (handlers, cache, db, services, monitoring)
-- ✅ Binary compiled: `search-service` (15MB, production-ready)
-- ✅ Redis caching layer with 1-hour TTL (verified 60-70% quota savings)
-- ✅ PostgreSQL search_history schema with analytics queries
-- ✅ SerpAPI integration tested and working (returned real anime results)
-- ✅ PostHog analytics framework integrated
-- ✅ **All endpoints tested and responding:**
-  - GET /api/search/history → ✅ working (search logging verified)
-  - GET /api/search/stats → ✅ working (analytics data correct)
-  - POST /api/search/web → ✅ working (SerpAPI integration verified)
-  - POST /api/search/concurrent → ✅ wired (parallel search ready)
-
-**Performance Metrics (from live testing):**
-- First search: 2.3 seconds (SerpAPI call + caching)
-- Cache hit: 4 milliseconds (Redis cached result)
-- Quota savings: ~575x faster on cached queries (2300ms → 4ms)
-- Logging: 2 searches, 1 unique query tracked in DB
-
----
-
-## Phase 4: Chatbot + Web Search (NEXT) 💬
-
-### Goal
-Build a Claude-powered chatbot that:
-- Answers questions about anime
-- Searches our database
-- Searches the web for live info (news, reviews, trending)
-- Provides context + sources
-
-### Endpoints to Create
-
-**1. Chat Endpoint**
-```
-POST /api/chat
-{
-  "message": "What's a good action anime right now?",
-  "history": [...]  // optional conversation history
-}
-
-Response:
-{
-  "response": "I'd recommend...",
-  "sources": ["https://...", ...],
-  "anime_ids": [1, 2, 3]
-}
-```
-
-### Architecture
-
-```
-User Message
-    ↓
-Claude Agent (via OpenRouter)
-    ├── Tool 1: Search anime DB
-    │   └── Find matching anime (title, genre, rating)
-    ├── Tool 2: Search web
-    │   └── Find news, reviews, trending
-    └── Combine results → natural response
-    ↓
-Return answer + sources + anime IDs
-```
-
-### Implementation Details
-
-**Web Search Service:**
-- Option 1: SerpAPI (free tier: 100 queries/month)
-- Option 2: DuckDuckGo (free, no rate limit)
-- Option 3: Custom scraper (more complex)
-- **Decision: SerpAPI for reliability**
-
-**Claude Tools:**
-```python
-tools = [
-    {
-        "name": "search_anime_db",
-        "description": "Search our database for anime",
-        "input_schema": {...}
-    },
-    {
-        "name": "search_web",
-        "description": "Search web for anime news/reviews",
-        "input_schema": {...}
-    }
-]
-```
-
-**Files to Create:**
-- `backend/app/routes/chat.py` — Chat endpoint
-- `backend/app/utils/web_search.py` — Web search integration
-- `backend/app/utils/claude_agent.py` — Claude agent setup
-- `backend/app/utils/chat_memory.py` — Conversation history (optional)
-
-**Files to Modify:**
-- `backend/main.py` — Add chat router
-- `backend/requirements.txt` — Add requests or httpx (for web search)
-- `backend/.env.example` — Add SERPAPI_KEY
-
-### Testing
-
-```bash
-# Basic chat
-curl -X POST "http://localhost:8000/api/chat" \
-  -H "Content-Type: application/json" \
-  -d '{"message":"recommend dark anime with web search"}'
-
-# With history
-curl -X POST "http://localhost:8000/api/chat" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message":"tell me more",
-    "history":[
-      {"role":"user","content":"recommend action"},
-      {"role":"assistant","content":"..."}
-    ]
-  }'
-```
-
-### Success Criteria
-
-✅ Chat endpoint working  
-✅ Claude searches anime DB  
-✅ Web search returns results  
-✅ Responses include sources  
-✅ Conversation history preserved  
-✅ Multiple turns work smoothly
-
----
-
-## Phase 5: Go Microservice + Caching + Monitoring ✅ COMPLETE
-
-### Goal
-Production-ready Go microservice with caching, monitoring, and error tracking
-
-### What to Build
-
-**Part A: Go Microservice (2-3 days)**
-```
-go-search/
-├── main.go                (service entry)
-├── handlers/search.go     (API endpoints)
-├── cache/redis.go         (NEW - caching layer)
-├── db/history.go          (NEW - search history)
-├── monitoring/sentry.go   (NEW - error tracking)
-├── docker-compose.yml
-├── Dockerfile
-└── go.mod
-```
-
-**Part B: Monitoring (1 day)**
-- Sentry: Capture backend errors (Python + Go)
-- PostHog: Track user events + analytics
-- Structured logging
-- Performance metrics
-
-### Features
-
-**1. Redis Caching Layer**
-```
-Query → Check Cache → 
-  ✅ Found? Return cached (instant)
-  ❌ Miss? Call SerpAPI → Cache → Return
-
-Result: Save 60-70% SerpAPI quota!
-```
-
-**2. Search History**
-```
-Log: {query, results, timestamp, api_calls}
-Benefits:
-- Analytics dashboard
-- Avoid duplicate searches
-- Track user behavior
-- Trending queries detection
-```
-
-**3. Error Tracking (Sentry)**
-```
-❌ Exception in search?
-   → Sentry captures automatically
-   → Alert on dashboard
-   → Error grouping + trends
-```
-
-**4. Analytics (PostHog)**
-```
-- User search behavior
-- API performance
-- Cache hit rates
-- Feature usage tracking
-```
-
-### Why This is Professional
-- ✅ Production-ready architecture
-- ✅ Shows DevOps maturity
-- ✅ Error handling culture
-- ✅ Data-driven optimization
-- ✅ Monitoring from day 1
-
----
-
-## Phase 3: Frontend (Chat UI) 🎨 (AFTER Phase 5)
-
-### Goal
-Build React interface for the chatbot with PostHog tracking
-
-### Add Monitoring to Frontend
-- PostHog events: chat sent, search performed, recommendations clicked
-- Performance metrics: response times
-- User behavior tracking
-- Funnel analysis
-
-### Features
-
-1. **Chat Interface**
-   - Message input
-   - Message history display
-   - Streaming responses
-   - Loading states
-
-2. **Anime Results**
-   - Inline anime cards in chat
-   - Links to details
-   - Images, ratings, genres
-
-3. **Search & Filter Dashboard**
-   - Full-text search bar
-   - Multi-filter panel:
-     - Genre checkboxes
-     - Year range slider
-     - Studio filter
-     - Rating sort (high → low)
-   - Quick preset buttons ("Action", "Dark", "Recently Trending")
-   - Previous searches
-
-4. **Details Page**
-   - Full anime info
-   - Trailer (YouTube embed)
-   - Cast/Studios
-   - Links to external sites
-
-### Tech Stack
-- React 18 + TypeScript
-- Tailwind CSS
-- Zustand (state management)
-- React Query (API calls)
-
-### File Structure
-```
-frontend/
-├── src/
-│   ├── components/
-│   │   ├── ChatWindow.tsx
-│   │   ├── MessageBubble.tsx
-│   │   ├── AnimeCard.tsx
-│   │   ├── AnimeDetail.tsx
-│   │   └── SearchFilters.tsx (genres, year, studio, rating)
-│   ├── pages/
-│   │   ├── ChatPage.tsx
-│   │   ├── BrowsePage.tsx (dashboard with filters)
-│   │   └── AnimePage.tsx
-│   ├── hooks/
-│   │   ├── useChat.ts
-│   │   ├── useAnime.ts
-│   │   └── useSearch.ts (filter state)
-│   └── App.tsx
-```
-
-### Success Criteria
-
-✅ Chat UI responsive  
-✅ Messages display correctly  
-✅ Anime cards render  
-✅ Details page works  
-✅ Mobile-friendly  
-✅ Streaming responses feel natural
-
----
-
-## Why Phase 4 → Phase 3?
-
-| Aspect | Phase 4 First | Phase 3 First |
-|--------|---|---|
-| **Backend complete** | ✅ Yes | ❌ Missing web search |
-| **UI changes needed** | ❌ No | ✅ Might rebuild for chat |
-| **Time to impressive** | Slower | Faster initially, then rebuild |
-| **Quality** | Higher (all features ready) | Lower (incomplete backend) |
-
-**Winner: Phase 4 → Phase 3** — All backend done before touching UI
-
----
-
-## Timeline Estimate
-
-- **Phase 4:** 2-3 days (web search + agent setup + testing)
-- **Phase 3:** 3-4 days (React UI + polish)
-- **Total:** ~1 week for fully functional app
-
----
-
-
-## Phase 6: Deployment + Monitoring 🌍
-
-### Deploy Services
-- **Frontend:** Vercel (auto-deploy from main)
-- **Backend:** Railway (Python FastAPI)
-- **Go Service:** Railway (microservice)
-- **Database:** PostgreSQL managed
-- **Cache:** Redis (in-memory cache)
-- **Web Search:** SerpAPI ($0 free tier)
-
-### Monitoring Live
-- **Sentry:** Error tracking + alerts
-  - Capture exceptions from Python + Go
-  - Performance monitoring
-  - Deployment tracking
-  
-- **PostHog:** User analytics
-  - User behavior funnels
-  - Feature usage metrics
-  - Event tracking
-  - Session recording (optional)
-
-### Dashboards
-- Sentry: Error trends, performance
-- PostHog: User analytics, engagement
-- Railway: Service health, logs
-- Redis: Cache hit rates, memory usage
-
----
-
-## Timeline (Optimized Order)
-
-- **Phase 4 (Chat + Web Search):** ✅ COMPLETE
-- **Phase 5 (Go + Caching + Monitoring):** ✅ COMPLETE (tested & verified)
-  - ✅ Go microservice binary (15MB, production-ready)
-  - ✅ Redis caching (60-70% quota savings verified)
-  - ✅ Search history logging (PostgreSQL table, analytics working)
-  - ✅ SerpAPI integration (web search tested, 2.3s→4ms with cache)
-  - ✅ Analytics dashboard (total searches, unique queries)
-  - ✅ PostHog event tracking framework
-  - ✅ All endpoints tested end-to-end
-- **Phase 3 (React UI):** NEXT - 3-4 days
-  - Chat interface with streaming responses
-  - Anime search + filter dashboard
-  - Build on fully optimized backend (no changes needed)
-  - PostHog tracking in frontend
-- **Phase 6 (Deploy + Monitor):** FINAL - 1 day
-  - Railway (Python + Go)
-  - Vercel (React)
-  - Sentry + PostHog dashboards live
-
----
-
-## Portfolio Impact
-
-### What You'll Show
-
-✅ **Phase 1-4:** Full-stack AI application  
-✅ **Phase 5:** Production-ready backend with monitoring  
-✅ **Phase 6:** Professional DevOps + observability  
-
-### Impressive Skills on Display
-
-**Backend:**
-- FastAPI (Python) + Go microservices
-- PostgreSQL with pgvector (AI embeddings)
-- Redis caching layer
-- Docker orchestration
-- API design patterns
-
-**Frontend:**
-- React 18 + TypeScript
-- Real-time chat UI
-- Performance optimization
-- Analytics integration
-
-**AI/ML:**
-- Claude API integration
-- Web search (SerpAPI)
-- Semantic search with embeddings
-- Recommendation system
-
-**DevOps/Monitoring:**
-- Docker + docker-compose
-- Multi-service orchestration
-- Sentry error tracking
-- PostHog analytics
-- Production deployment
-- Monitoring dashboards
-
-**This is professional portfolio gold.** 🎯
-
-Recruiters will see:
-- Full-stack capability ✅
-- Production-mindset (monitoring from day 1) ✅
-- Multi-language backend ✅
-- AI integration experience ✅
-- DevOps maturity ✅
+## Infrastructure
+
+**`docker compose up` does not work.** Four separate reasons:
+
+1. The dead `anime_db` and `anime_kafka` containers hold those names. Both
+   crashed on a full Docker disk, so they hold no data — `docker rm` them.
+2. Compose reads `${OPENROUTER_API_KEY}` from a `.env` at the project root,
+   which does not exist; the keys live in `backend/.env`. The containerised
+   backend therefore starts with a blank key and chat is dead. Fix:
+   `env_file: ./backend/.env` on `python-backend` and `go-search`.
+3. Nothing runs `ingest_anime.py`, so the database comes up empty. Add a
+   one-shot `ingest` service or document the step.
+4. No `.dockerignore` anywhere, and `backend/Dockerfile` does `COPY . .` —
+   which pulls 1.2 GB of `venv/` and 87 MB of `models/` into the build
+   context and the image.
+
+**`version: '3.8'`** in `docker-compose.yml` is obsolete and warns on every
+command.
+
+## Backend
+
+**Connection pooling.** 22 hand-rolled connect/use/close blocks across the
+routes, one connection per request, no pool. Fine for a portfolio, it will not
+survive real traffic. It is also why a leak existed in `debug_db` — there is no
+shared place for the handling to be correct once.
+
+**`ruff format` has never been run.** 19 files would change. Worth doing as a
+single commit, after which the `ruff format --check` step can be added to CI.
+
+**`backend/.env` sets `ENVIRONMENT='production'`**, so local runs report
+themselves as production to Sentry and PostHog.
+
+**Debug endpoints.** `/api/anime/debug/db-check` exposes database state with no
+authentication.
+
+## Search and chat
+
+**Web search is unverified.** `/api/search/web` and the `search_web` tool need
+`SERPAPI_KEY`; neither has been exercised. The agent also passes the whole user
+message to the web search, where the database search now extracts terms first.
+
+**The agent's term extraction is a hand-written filler list.** An unusual
+phrasing can still leak a noise word into the query. It degrades ranking, not
+correctness.
+
+**Search ranking is two-tier** (title match, then rating). Within a tier it is
+pure rating, so two matching titles sort by score rather than by how closely
+they match.
+
+## Frontend
+
+**Three `set-state-in-effect` warnings.** One in `Chat.jsx` (fetch on mount,
+benign) and two in `Explore.jsx`, where filtered results are derived into
+state. The Explore one is genuinely derivable during render, but rewriting it
+risks the pagination logic. CI is set to `--max-warnings 3`, so a fourth fails
+the build.
+
+**Browse has three genre sections** — Action, Drama, Psychological. Comedy,
+Romance, Sci-Fi and Adventure are all in the data.
+
+**The chat modal does not refetch history** when closed and reopened in the
+same page view; it keeps the messages in memory. A page reload refetches.
+
+## Testing
+
+**Two suites, both narrow.** `consumers/consumer_test.go` covers the Kafka
+commit decision and the consumer loop; `backend/tests/` covers the query
+parser. Nothing covers the HTTP routes, and the Go handlers are hard to test
+because the backend URL and the embedding client are resolved at construction
+rather than injected.
+
+**The DLQ path has never run against a real broker** — only against fakes.

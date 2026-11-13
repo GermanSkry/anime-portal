@@ -1,5 +1,6 @@
 """Web search using SerpAPI (Google Search) with smart query optimization"""
 import httpx
+
 from app.config import settings
 
 # Mock fallback data (in case SerpAPI is unavailable or quota exhausted)
@@ -75,7 +76,7 @@ async def search_web(query: str, limit: int = 3) -> list[dict]:
             # Fall back to mock if no results from API
             return MOCK_TRENDING.get("trending", [])[:limit]
 
-    except Exception as e:
+    except Exception:
         # Network error, quota exceeded, invalid API key, etc.
         # Silently fall back to mock data
         query_lower = query.lower()

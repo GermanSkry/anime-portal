@@ -7,90 +7,20 @@ import (
 	"log"
 	"time"
 
-	kfg "github.com/segmentio/kafka-go"
 	"anime-search-service/db"
 	"anime-search-service/kafka"
 )
 
-// DBConsumer saves chat messages to PostgreSQL
-type DBConsumer struct {
-	reader *kfg.Reader
-	writer *kfg.Writer
-	conn   *db.Connection
-	config kafka.RetryConfig
-}
-
-// NewDBConsumer creates a new DB consumer
-func NewDBConsumer(conn *db.Connection) *DBConsumer {
-	return &DBConsumer{
-		reader: kafka.NewReader("chat.messages"),
-		writer: kafka.NewWriter("dlq.failed_messages"),
-		conn:   conn,
-		config: kafka.DefaultRetryConfig(),
-	}
-}
-
-// Start begins consuming messages
-func (c *DBConsumer) Start(ctx context.Context) {
-	log.Println("🚀 DB Consumer starting...")
-
-	for {
-		select {
-		case <-ctx.Done():
-			c.reader.Close()
-			c.writer.Close()
-			log.Println("✅ DB Consumer stopped")
-			return
-		default:
-		}
-
-		msg, err := c.reader.FetchMessage(ctx)
-		if err != nil {
-			log.Printf("❌ Error fetching message: %v", err)
-			time.Sleep(time.Second)
-			continue
-		}
-
-		// Process with retry logic
-		if err := c.processWithRetry(ctx, msg); err != nil {
-			log.Printf("❌ All retries failed for message %s: %v", msg.Key, err)
-			kafka.SendToDLQ(ctx, c.writer, "chat.messages", msg, err, c.config.MaxRetries)
-			continue
-		}
-
-		// Mark as processed
-		c.reader.CommitMessages(ctx, msg)
-		log.Printf("✅ Message processed: %s", msg.Key)
-	}
-}
-
-// processWithRetry attempts to save with exponential backoff
-func (c *DBConsumer) processWithRetry(ctx context.Context, msg kfg.Message) error {
-	var lastErr error
-
-	for attempt := 0; attempt < c.config.MaxRetries; attempt++ {
-		event, err := kafka.ParseEvent(msg.Value)
-		if err != nil {
-			return fmt.Errorf("invalid message format: %w", err)
-		}
-
-		lastErr = c.saveToDB(ctx, event)
-		if lastErr == nil {
-			return nil
-		}
-
-		log.Printf("⚠️ Attempt %d failed: %v, retrying in %dms...",
-			attempt+1, lastErr, c.config.BackoffMs[attempt])
-
-		time.Sleep(time.Duration(c.config.BackoffMs[attempt]) * time.Millisecond)
-	}
-
-	return lastErr
+// NewDBConsumer saves chat messages to PostgreSQL.
+func NewDBConsumer(conn *db.Connection) *Consumer {
+	return newConsumer("DB Consumer", "processed", "chat.messages-db", func(ctx context.Context, event *kafka.ChatMessageEvent) error {
+		return saveToDB(ctx, conn, event)
+	})
 }
 
 // saveToDB saves the chat message to database with idempotency check
-func (c *DBConsumer) saveToDB(ctx context.Context, event *kafka.ChatMessageEvent) error {
-	sqlDB := c.conn.DB()
+func saveToDB(ctx context.Context, conn *db.Connection, event *kafka.ChatMessageEvent) error {
+	sqlDB := conn.DB()
 
 	// Check if already processed (idempotent)
 	var exists bool
@@ -109,7 +39,10 @@ func (c *DBConsumer) saveToDB(ctx context.Context, event *kafka.ChatMessageEvent
 	}
 
 	// Convert anime references to JSON
-	refsJSON, _ := json.Marshal(event.AnimeReferences)
+	refsJSON, err := json.Marshal(event.AnimeReferences)
+	if err != nil {
+		return fmt.Errorf("could not encode anime references: %w", err)
+	}
 
 	// Save to chat_history
 	_, err = sqlDB.ExecContext(ctx,
@@ -124,9 +57,10 @@ func (c *DBConsumer) saveToDB(ctx context.Context, event *kafka.ChatMessageEvent
 
 	// Mark as processed
 	_, err = sqlDB.ExecContext(ctx,
-		`INSERT INTO processed_messages (topic, message_id, offset, processed_at)
-		 VALUES ($1, $2, $3, $4)`,
-		"chat.messages", event.MessageID, 0, time.Now(),
+		`INSERT INTO processed_messages (topic, message_id, processed_at)
+		 VALUES ($1, $2, $3)
+		 ON CONFLICT (message_id) DO NOTHING`,
+		"chat.messages", event.MessageID, time.Now(),
 	)
 
 	if err != nil {

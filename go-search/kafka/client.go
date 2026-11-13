@@ -14,23 +14,25 @@ import (
 
 // ChatMessageEvent represents a chat message event from Kafka
 type ChatMessageEvent struct {
-	MessageID        string `json:"message_id"`
-	UserID           string `json:"user_id"`
-	Message          string `json:"message"`
-	Response         string `json:"response"`
-	AnimeReferences  []struct {
+	MessageID       string `json:"message_id"`
+	UserID          string `json:"user_id"`
+	Message         string `json:"message"`
+	Response        string `json:"response"`
+	AnimeReferences []struct {
 		Title string `json:"title"`
 		ID    int    `json:"id"`
 	} `json:"anime_references"`
-	AnimeContextID int    `json:"anime_context_id"`
+	// pointer, not int: a general chat sends null here, and an int would store it as 0.
+	// The history query filters on "anime_context_id IS NULL", which 0 never satisfies.
+	AnimeContextID *int   `json:"anime_context_id"`
 	Timestamp      string `json:"timestamp"`
 }
 
 // RetryConfig for exponential backoff
 type RetryConfig struct {
-	MaxRetries  int
-	BackoffMs   []int
-	DLQTopic    string
+	MaxRetries int
+	BackoffMs  []int
+	DLQTopic   string
 }
 
 // DefaultRetryConfig returns standard retry config
@@ -43,7 +45,10 @@ func DefaultRetryConfig() RetryConfig {
 }
 
 // NewReader creates a new Kafka reader
-func NewReader(topic string) *kfg.Reader {
+// NewReader subscribes to topic under its own consumer group. Each consumer needs a
+// distinct group: Kafka gives a partition to one member per group, so two consumers
+// sharing a group would each see only part of the stream.
+func NewReader(topic, group string) *kfg.Reader {
 	brokers := strings.Split(os.Getenv("KAFKA_BROKERS"), ",")
 	if len(brokers) == 0 || brokers[0] == "" {
 		brokers = []string{"localhost:9092"}
@@ -52,7 +57,7 @@ func NewReader(topic string) *kfg.Reader {
 	return kfg.NewReader(kfg.ReaderConfig{
 		Brokers:        brokers,
 		Topic:          topic,
-		GroupID:        fmt.Sprintf("%s-consumer", topic),
+		GroupID:        group,
 		StartOffset:    kfg.LastOffset,
 		CommitInterval: time.Second,
 		MaxBytes:       10e6,
@@ -74,7 +79,14 @@ func NewWriter(topic string) *kfg.Writer {
 }
 
 // SendToDLQ sends a failed message to the dead letter queue
-func SendToDLQ(ctx context.Context, writer *kfg.Writer, originalTopic string, msg kfg.Message, err error, retriesAttempted int) error {
+// MessageWriter is what SendToDLQ needs from a Kafka writer. *kfg.Writer satisfies
+// it; tests substitute a fake.
+type MessageWriter interface {
+	WriteMessages(context.Context, ...kfg.Message) error
+	Close() error
+}
+
+func SendToDLQ(ctx context.Context, writer MessageWriter, originalTopic string, msg kfg.Message, err error, retriesAttempted int) error {
 	dlqMessage := map[string]interface{}{
 		"original_topic":    originalTopic,
 		"original_message":  string(msg.Value),
@@ -85,7 +97,10 @@ func SendToDLQ(ctx context.Context, writer *kfg.Writer, originalTopic string, ms
 		"partition":         msg.Partition,
 	}
 
-	data, _ := json.Marshal(dlqMessage)
+	data, marshalErr := json.Marshal(dlqMessage)
+	if marshalErr != nil {
+		return marshalErr
+	}
 
 	return writer.WriteMessages(ctx, kfg.Message{
 		Value: data,

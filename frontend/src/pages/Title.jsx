@@ -13,20 +13,10 @@ const navigateToExplore = (navigate, filterType, filterValue) => {
   })
 }
 
-const defaultTitle = {
-  id: 1,
-  name: 'Attack on Titan',
-  year: '2013',
-  studio: 'Wit Studio',
-  rating: '8.9',
-  genres: ['Action', 'Dark Fantasy', 'Adventure'],
-  synopsis: 'Humanity has been decimated by the sudden appearance of colossal humanoid creatures called Titans. Little is known about where they came from, but the threat is so real that the remnants of humanity had to take refuge behind a massive wall. Eren Yeager witnesses the destruction of his hometown and the death of his mother, setting him on a path of vengeance to eliminate every last Titan.'
-}
-
 export default function Title() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const [title, setTitle] = useState(defaultTitle)
+  const [title, setTitle] = useState(null)
   const [similar, setSimilar] = useState([])
   const [loading, setLoading] = useState(true)
   const [chatOpen, setChatOpen] = useState(false)
@@ -61,6 +51,12 @@ export default function Title() {
 
   if (loading) {
     return <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>Loading...</div>
+  }
+
+  if (!title) {
+    return <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
+      Could not load this anime. It may not exist, or the server is unavailable.
+    </div>
   }
 
   return (

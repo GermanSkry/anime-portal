@@ -51,8 +51,8 @@ pip install -r requirements.txt
 cp .env.example .env
 # Edit .env with your DATABASE_URL and CLAUDE_API_KEY
 
-python scripts/fetch_anime.py
-python scripts/ingest_anime.py
+python scripts/fetch_anime_enhanced.py   # downloads data/anime.json from AniList
+python scripts/ingest_anime.py           # creates the schema + embeddings
 
 python main.py  # Runs on http://localhost:8000
 ```
@@ -99,71 +99,69 @@ npm run dev  # Runs on http://localhost:5173
 
 ```
 anime-portal/
-├── backend/
-│   ├── main.py                 # FastAPI app
-│   ├── requirements.txt        # Python dependencies
-│   ├── .env.example            # Environment template
+├── backend/                     # FastAPI + Postgres/pgvector
+│   ├── main.py                  # app entrypoint, Sentry/PostHog/Kafka wiring
+│   ├── requirements.txt
+│   ├── pyproject.toml           # ruff config (lint + format + imports)
 │   ├── app/
-│   │   ├── config.py           # Settings
-│   │   ├── database.py         # DB connection
-│   │   └── routes/
-│   │       ├── anime.py        # Anime endpoints
-│   │       ├── search.py       # Search (Phase 2)
-│   │       ├── stats.py        # Stats (Phase 2)
-│   │       └── recommend.py    # AI (Phase 2)
+│   │   ├── config.py            # settings from env
+│   │   ├── routes/              # anime, search, chat, stats, recommend,
+│   │   │                        #   characters, embeddings
+│   │   └── utils/               # langgraph_agent, claude_agent, embeddings,
+│   │                            #   web_search, langfuse_tracer
 │   ├── scripts/
-│   │   ├── fetch_anime.py      # Download anime data
-│   │   └── ingest_anime.py     # Load into DB
-│   └── data/
-│       └── anime.json          # Cached anime data
+│   │   ├── fetch_anime_enhanced.py   # AniList -> data/anime.json
+│   │   ├── ingest_anime.py           # anime.json -> Postgres + embeddings
+│   │   ├── update_plots.py
+│   │   └── update_trailers.py
+│   └── data/anime.json          # fetched, gitignored
 │
-├── frontend/
+├── go-search/                   # Go search service + Kafka consumers
+│   ├── main.go                  # gin API on :8080
+│   ├── .golangci.yml
+│   ├── handlers/ services/ cache/ db/ kafka/ consumers/ utils/
+│
+├── frontend/                    # React 19 + Vite
 │   ├── src/
-│   │   ├── main.tsx            # React entry
-│   │   ├── App.tsx             # Router
-│   │   ├── pages/
-│   │   │   ├── Home.tsx        # Featured, Collections
-│   │   │   ├── Dashboard.tsx   # Stats
-│   │   │   ├── TitleDetail.tsx # Single anime
-│   │   │   └── Chat.tsx        # AI chat
-│   │   ├── components/
-│   │   │   ├── AnimeCard.tsx
-│   │   │   ├── FilterBar.tsx
-│   │   │   └── ...
-│   │   └── hooks/
-│   │       ├── useAnime.ts
-│   │       └── useRecommendations.ts
-│   ├── package.json
-│   ├── tailwind.config.ts
-│   └── .env.example
+│   │   ├── App.jsx              # router
+│   │   ├── pages/               # Chat, Browse, Explore, Title
+│   │   ├── components/          # ChatModal, MessageRenderer
+│   │   └── services/api.js      # all backend calls (uses VITE_API_URL)
+│   ├── .oxlintrc.json
+│   └── package.json
 │
-├── docs/
-│   └── architecture.md
-├── README.md
-├── .gitignore
-└── PHASE_1_SETUP.md
+├── docker-compose.yml           # postgres(pgvector), redis, redpanda
+├── Makefile
+└── README.md
 ```
 
 ---
 
-## Development Status
+## Documentation
 
-| Phase | Status | What's Done |
-|-------|--------|------------|
-| **Phase 1** | ✅ DONE | Data model + PostgreSQL + trailers |
-| **Phase 2** | ✅ DONE | Full-text search, semantic search, AI recommendations |
-| **Phase 4** | ✅ DONE | Chat endpoint, database-first search, SerpAPI web search |
-| **Phase 3** | ⏳ NEXT | React UI for chat + browse dashboard (3-4 days) |
-| **Deployment** | 📋 PLANNED | Railway (backend), Vercel (frontend) |
+| | |
+|---|---|
+| [ARCHITECTURE.md](ARCHITECTURE.md) | How chat and browse work end to end |
+| [DATA_MODEL.md](DATA_MODEL.md) | Database schema |
+| [HISTORY.md](HISTORY.md) | What was built, in order |
+| [ROADMAP.md](ROADMAP.md) | What is still open |
+| [CODE_QUALITY_REPORT.md](CODE_QUALITY_REPORT.md) | Linting, the 23 bugs found, how they were verified |
+| [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) | Hosting options |
+| [docs/kafka-testing.md](docs/kafka-testing.md) | Exercising the consumers locally |
+| [docs/monitoring.md](docs/monitoring.md) | Sentry, PostHog, Langfuse setup |
 
-### What's Working Right Now
+## Status
 
-**Backend (100% functional):**
-- 250 anime in PostgreSQL with vector embeddings
-- 3 search types: full-text, semantic, AI recommendations
-- Smart chat with database-first + optional web search
-- Conversation history support
-- Free tier SerpAPI (250 searches/month)
+All four phases are implemented: data pipeline, backend and AI, the Go search
+service with Kafka consumers, and the React frontend. 250 anime with real
+`all-MiniLM-L6-v2` embeddings, three search types (full-text, semantic,
+AI recommendations), and a LangGraph chat agent that searches the catalogue
+before answering.
+
+Verified end to end in a browser, against live Postgres, Redpanda and both
+services — see [CODE_QUALITY_REPORT.md](CODE_QUALITY_REPORT.md) for what that
+run found and fixed. Known gaps, including `docker compose up`, are in
+[ROADMAP.md](ROADMAP.md).
 
 ---
 

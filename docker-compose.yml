@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   postgres:
-    image: postgres:15
+    image: pgvector/pgvector:pg15  # stock postgres:15 has no `vector` type; semantic search needs it
     container_name: anime_db
     environment:
       POSTGRES_USER: postgres
@@ -76,6 +76,7 @@ services:
       DATABASE_URL: postgres://postgres:password@postgres:5432/anime_db
       REDIS_URL: redis://redis:6379
       KAFKA_BROKERS: redpanda:29092
+      PYTHON_API_URL: http://python-backend:8000
       SENTRY_DSN: ${SENTRY_DSN}
       POSTHOG_API_KEY: ${POSTHOG_API_KEY}
       PORT: 8001

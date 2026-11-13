@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Fetch enhanced anime data from AniList API (characters, relations, themes)"""
-import httpx
-import json
 import asyncio
+import json
 from pathlib import Path
+
+import httpx
 
 DATA_DIR = Path(__file__).parent.parent / "data"
 DATA_DIR.mkdir(exist_ok=True)
@@ -202,11 +203,11 @@ async def main():
     with open(anime_file, "w") as f:
         json.dump(data["anime"], f, indent=2)
 
-    print(f"\n✅ Data saved:")
+    print("\n✅ Data saved:")
     print(f"   Anime: {anime_file} ({len(data['anime'])} entries)")
     print(f"   Characters: {len(data['characters'])} unique characters")
     print(f"   Relations: {len(data['relations'])} anime relationships")
-    print(f"\n📊 Statistics:")
+    print("\n📊 Statistics:")
     total_chars = sum(len(a.get("characters", [])) for a in data["anime"])
     print(f"   Total character mentions: {total_chars}")
     print(f"   Avg characters per anime: {total_chars / len(data['anime']):.1f}")

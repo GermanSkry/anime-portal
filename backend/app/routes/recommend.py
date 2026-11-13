@@ -1,9 +1,11 @@
-from fastapi import APIRouter
-from pydantic import BaseModel
-from openai import OpenAI
-import psycopg
-from app.config import settings
 import json
+
+import psycopg
+from fastapi import APIRouter
+from openai import OpenAI
+from pydantic import BaseModel
+
+from app.config import settings
 
 router = APIRouter(prefix="/api", tags=["recommendations"])
 
@@ -72,6 +74,6 @@ Return ONLY a JSON array with this format (no other text):
         if start != -1 and end > start:
             return json.loads(text[start:end])
     except Exception as e:
-        return {"error": f"Failed to parse recommendations: {str(e)}"}
+        return {"error": f"Failed to parse recommendations: {e!s}"}
 
     return {"error": "Could not generate recommendations"}

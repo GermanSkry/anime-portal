@@ -9,4 +9,7 @@ async def generate_embedding(text: str) -> list:
         return [0.0] * 384
 
     embedding = model.encode(text, convert_to_numpy=True).tolist()
-    return embedding[:384]
+    # the embeddings.plot_embedding column is vector(384); truncating a different model's output
+    # would store a broken vector and silently ruin semantic search, so fail instead
+    assert len(embedding) == 384, f"model returns {len(embedding)} dims, column is vector(384)"
+    return embedding

@@ -1,5 +1,6 @@
-from fastapi import APIRouter
 import psycopg
+from fastapi import APIRouter
+
 from app.config import settings
 
 router = APIRouter(prefix="/api/stats", tags=["stats"])

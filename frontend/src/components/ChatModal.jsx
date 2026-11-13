@@ -12,7 +12,6 @@ export default function ChatModal({ isOpen, onClose, animeContext = null }) {
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const [history, setHistory] = useState([])
   const messagesEndRef = useRef(null)
   const hasLoadedHistory = useRef(false)
 
@@ -23,14 +22,6 @@ export default function ChatModal({ isOpen, onClose, animeContext = null }) {
   useEffect(() => {
     scrollToBottom()
   }, [messages])
-
-  // Load chat history on first open
-  useEffect(() => {
-    if (isOpen && !hasLoadedHistory.current) {
-      loadChatHistory()
-      hasLoadedHistory.current = true
-    }
-  }, [isOpen])
 
   const getCustomGreeting = () => {
     if (!animeContext) return '👋 What anime are you looking for?'
@@ -52,32 +43,30 @@ export default function ChatModal({ isOpen, onClose, animeContext = null }) {
   }
 
   const loadChatHistory = async () => {
-    try {
-      // If anime context provided, load history for that anime only
-      const url = animeContext
-        ? `http://localhost:8000/api/chat/history?limit=20&anime_id=${animeContext.id}`
-        : 'http://localhost:8000/api/chat/history?limit=10'
-
-      const response = await fetch(url)
-      if (response.ok) {
-        const data = await response.json()
-        if (data.length > 0) {
-          // Convert history to messages (reverse to show oldest first)
-          const historyMessages = data.reverse().flatMap(item => [
-            { role: 'user', text: item.user_message },
-            { role: 'assistant', text: item.assistant_response, animeReferences: item.anime_references || [] }
-          ])
-          // Add greeting, then history
-          setMessages([
-            { role: 'assistant', text: getCustomGreeting() },
-            ...historyMessages
-          ])
-        }
-      }
-    } catch (error) {
-      console.error('Error loading chat history:', error)
+    // anime context loads that anime's history only
+    const data = await chatAPI.getHistory(animeContext?.id ?? null, animeContext ? 20 : 10)
+    if (Array.isArray(data) && data.length > 0) {
+      // reverse to show oldest first
+      const historyMessages = data.reverse().flatMap(item => [
+        { role: 'user', text: item.user_message },
+        { role: 'assistant', text: item.assistant_response, animeReferences: item.anime_references || [] }
+      ])
+      setMessages([
+        { role: 'assistant', text: getCustomGreeting() },
+        ...historyMessages
+      ])
     }
   }
+
+  // Load chat history on first open
+  useEffect(() => {
+    if (isOpen && !hasLoadedHistory.current) {
+      hasLoadedHistory.current = true
+      loadChatHistory()
+    }
+    // hasLoadedHistory guards the one-shot fetch, so loadChatHistory does not belong in the deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen])
 
   const buildHistoryForAPI = () => {
     // Build message history, summarizing old messages if > 5

@@ -1,0 +1,22 @@
+# Minimal gate: the default linters plus errcheck. Deliberately lighter than
+# ~/Qortex/qortex/golangci.yml — this repo has no test suite to absorb the churn.
+version: "2"
+run:
+  timeout: 3m
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+  settings:
+    errcheck:
+      # deferred/shutdown closers: nothing actionable can be done with the error
+      exclude-functions:
+        - (io.Closer).Close
+        - (*database/sql.Rows).Close
+        - (net.Conn).Close
+        - (*anime-search-service/cache.RedisCache).Close
+        - (*anime-search-service/db.Connection).Close
+        - (*github.com/segmentio/kafka-go.Conn).Close

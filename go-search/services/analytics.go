@@ -22,8 +22,8 @@ type PostHogEvent struct {
 }
 
 type PostHogBatch struct {
-	BatchKey string          `json:"batch_key"`
-	Events   []PostHogEvent  `json:"events"`
+	BatchKey string         `json:"batch_key"`
+	Events   []PostHogEvent `json:"events"`
 }
 
 func NewPostHogClient() *PostHogClient {
@@ -83,11 +83,11 @@ func (p *PostHogClient) CaptureEvent(distinctID string, event string, properties
 // TrackSearch tracks a search event
 func (p *PostHogClient) TrackSearch(query string, resultCount int, queryType string, duration time.Duration) error {
 	properties := map[string]interface{}{
-		"query":         query,
-		"result_count":  resultCount,
-		"query_type":    queryType,
-		"duration_ms":   duration.Milliseconds(),
-		"timestamp":     time.Now().Unix(),
+		"query":        query,
+		"result_count": resultCount,
+		"query_type":   queryType,
+		"duration_ms":  duration.Milliseconds(),
+		"timestamp":    time.Now().Unix(),
 	}
 
 	return p.CaptureEvent(queryType, "search_performed", properties)
