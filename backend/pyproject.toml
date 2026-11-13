@@ -1,0 +1,27 @@
+[tool.ruff]
+target-version = "py313"
+exclude = ["venv", "models", "data"]
+line-length = 120
+
+[tool.ruff.lint]
+# ruff replaces pylint + black + isort + flake8 for this repo
+select = ["E", "F", "I", "UP", "B", "ASYNC", "LOG", "PL", "RUF", "SIM", "S"]
+ignore = [
+    "E501",     # line length is advisory here
+    "S101",     # assert is fine outside request handlers
+    "PLR0124",  # x != x is the NaN check in search.py, not a mistake
+    "PLR2004",  # magic values: HTTP 200 and friends read fine inline
+    "PLR0911",  # return count
+    "PLR0913",  # argument count
+    "PLR0915",  # statement count
+    "PLR0917",  # positional argument count
+    "PLC0415",  # local imports are deliberate (cycle breaking, lazy heavy deps)
+    "PLW0603",  # global is how the Kafka producer singleton works
+]
+
+[tool.ruff.lint.per-file-ignores]
+# one-shot ingest scripts: blocking IO and broad excepts are fine, nothing is serving traffic
+"scripts/*" = ["S", "BLE", "ASYNC"]
+# FastAPI handlers catch Exception on purpose to turn failures into a 500 instead of a stack trace
+"app/routes/*" = ["BLE001"]
+"app/utils/*" = ["BLE001"]
