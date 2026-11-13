@@ -41,7 +41,6 @@ env/
 
 # Data
 backend/data/
-*.json
 
 # OS
 .DS_Store
@@ -54,3 +53,6 @@ frontend/.env.local
 
 # Build
 frontend/dist/
+
+# HF model cache (downloaded at runtime)
+backend/models/
