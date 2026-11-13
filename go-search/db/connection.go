@@ -63,11 +63,11 @@ func (c *Connection) GetSearchHistory(limit int) ([]map[string]interface{}, erro
 		}
 
 		results = append(results, map[string]interface{}{
-			"id":            id,
-			"query":         query,
-			"result_count":  resultCount,
-			"query_type":    queryType,
-			"created_at":    createdAt,
+			"id":           id,
+			"query":        query,
+			"result_count": resultCount,
+			"query_type":   queryType,
+			"created_at":   createdAt,
 		})
 	}
 
@@ -87,8 +87,8 @@ func (c *Connection) GetSearchStats() (map[string]interface{}, error) {
 	}
 
 	return map[string]interface{}{
-		"total_searches":  totalSearches,
-		"unique_queries":  uniqueQueries,
+		"total_searches": totalSearches,
+		"unique_queries": uniqueQueries,
 	}, nil
 }
 

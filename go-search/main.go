@@ -11,8 +11,8 @@ import (
 	"anime-search-service/handlers"
 	"anime-search-service/monitoring"
 
-	"github.com/gin-gonic/gin"
 	"github.com/getsentry/sentry-go"
+	"github.com/gin-gonic/gin"
 )
 
 func main() {

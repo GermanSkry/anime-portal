@@ -7,6 +7,8 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
+	"os"
 	"time"
 
 	"anime-search-service/cache"
@@ -18,10 +20,12 @@ import (
 )
 
 type SearchHandlers struct {
-	cache    *cache.RedisCache
-	db       *db.Connection
-	serpapi  *services.SerpAPIClient
+	cache     *cache.RedisCache
+	db        *db.Connection
+	serpapi   *services.SerpAPIClient
 	analytics *services.PostHogClient
+	backend   string
+	embedder  *utils.EmbeddingClient
 }
 
 type SearchRequest struct {
@@ -38,11 +42,17 @@ type ConcurrentSearchResult struct {
 }
 
 func NewSearchHandlers(redisClient *cache.RedisCache, dbConn *db.Connection) *SearchHandlers {
+	backend := os.Getenv("PYTHON_API_URL")
+	if backend == "" {
+		backend = "http://localhost:8000"
+	}
 	return &SearchHandlers{
 		cache:     redisClient,
 		db:        dbConn,
 		serpapi:   services.NewSerpAPIClient(),
 		analytics: services.NewPostHogClient(),
+		backend:   backend,
+		embedder:  utils.NewEmbeddingClient(backend),
 	}
 }
 
@@ -66,24 +76,23 @@ func (sh *SearchHandlers) SearchWeb(c *gin.Context) {
 	// Check cache first (exact + normalized match)
 	var results []services.SearchResult
 	if err := sh.cache.Get(ctx, cacheKey, &results); err == nil {
-		sh.analytics.TrackCacheHit(req.Query)
-		sh.db.LogSearch(req.Query, len(results), "web_cached")
+		utils.LogErr("track cache hit", sh.analytics.TrackCacheHit(req.Query))
+		utils.LogErr("log cached search", sh.db.LogSearch(req.Query, len(results), "web_cached"))
 		c.JSON(http.StatusOK, results)
 		return
 	}
 
 	// Try semantic similarity (Option 2)
 	// Get embedding for current query
-	embeddingClient := utils.NewEmbeddingClient("http://localhost:8000")
-	if embedding, err := embeddingClient.GetEmbedding(req.Query); err == nil {
+	if embedding, err := sh.embedder.GetEmbedding(req.Query); err == nil {
 		// Search for semantically similar cached queries
 		// 0.78 threshold: balances cache hits vs false positives
 		// Avoids opposite meanings (e.g., "best" vs "worst" is 0.82 but different)
 		if similarKey, err := sh.cache.GetSimilarQueries(ctx, embedding, 0.78); err == nil && similarKey != "" {
 			// Found semantic match! Extract original query and use cache
 			if err := sh.cache.Get(ctx, similarKey, &results); err == nil {
-				sh.analytics.TrackCacheHit(req.Query)
-				sh.db.LogSearch(req.Query, len(results), "web_semantic_cached")
+				utils.LogErr("track cache hit", sh.analytics.TrackCacheHit(req.Query))
+				utils.LogErr("log semantic cached search", sh.db.LogSearch(req.Query, len(results), "web_semantic_cached"))
 				log.Printf("Semantic cache hit: '%s' matched '%s'", req.Query, similarKey)
 				c.JSON(http.StatusOK, results)
 				return
@@ -92,32 +101,28 @@ func (sh *SearchHandlers) SearchWeb(c *gin.Context) {
 	}
 
 	// Cache miss - fetch from SerpAPI
-	sh.analytics.TrackCacheMiss(req.Query)
+	utils.LogErr("track cache miss", sh.analytics.TrackCacheMiss(req.Query))
 
 	results, err := sh.serpapi.Search(req.Query, 3)
 	if err != nil {
-		sh.analytics.TrackAPICall("serpapi", false, time.Since(startTime))
+		utils.LogErr("track failed serpapi call", sh.analytics.TrackAPICall("serpapi", false, time.Since(startTime)))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to search web"})
 		return
 	}
 
 	// Store in cache for 1 hour
-	sh.cache.Set(ctx, cacheKey, results, 1*time.Hour)
+	utils.LogErr("cache results", sh.cache.Set(ctx, cacheKey, results, 1*time.Hour))
 
 	// Store embedding for semantic similarity matching (Option 2)
 	// Get embedding and cache it for future semantic matches
-	if embeddingClient := utils.NewEmbeddingClient("http://localhost:8000"); embeddingClient != nil {
-		if embedding, err := embeddingClient.GetEmbedding(req.Query); err == nil {
-			// Store embedding with normalized query key
-			embeddingKey := fmt.Sprintf("embedding:%s", normalizedQuery)
-			sh.cache.StoreEmbedding(ctx, normalizedQuery, embedding)
-			log.Printf("Stored embedding for '%s' (key: %s)", req.Query, embeddingKey)
-		}
+	if embedding, err := sh.embedder.GetEmbedding(req.Query); err == nil {
+		utils.LogErr("store embedding", sh.cache.StoreEmbedding(ctx, normalizedQuery, embedding))
+		log.Printf("Stored embedding for '%s'", req.Query)
 	}
 
-	sh.analytics.TrackAPICall("serpapi", true, time.Since(startTime))
-	sh.analytics.TrackSearch(req.Query, len(results), "web", time.Since(startTime))
-	sh.db.LogSearch(req.Query, len(results), "web")
+	utils.LogErr("track serpapi call", sh.analytics.TrackAPICall("serpapi", true, time.Since(startTime)))
+	utils.LogErr("track search", sh.analytics.TrackSearch(req.Query, len(results), "web", time.Since(startTime)))
+	utils.LogErr("log web search", sh.db.LogSearch(req.Query, len(results), "web"))
 
 	c.JSON(http.StatusOK, results)
 }
@@ -131,19 +136,29 @@ func (sh *SearchHandlers) SearchAnime(c *gin.Context) {
 	}
 
 	// Call Python FastAPI backend
-	pythonURL := "http://localhost:8000/api/search/semantic?query_text=" + req.Query + "&limit=3"
-	resp, err := http.Get(pythonURL)
+	pythonURL := sh.backend + "/api/search/semantic?query_text=" + url.QueryEscape(req.Query) + "&limit=3"
+	resp, err := http.Post(pythonURL, "application/json", nil)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query anime database"})
 		return
 	}
 	defer resp.Body.Close()
 
-	body, _ := io.ReadAll(resp.Body)
-	var results interface{}
-	json.Unmarshal(body, &results)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil || resp.StatusCode != http.StatusOK {
+		log.Printf("anime backend returned %d: %v", resp.StatusCode, err)
+		c.JSON(http.StatusBadGateway, gin.H{"error": "Anime backend unavailable"})
+		return
+	}
 
-	sh.db.LogSearch(req.Query, 0, "anime")
+	var results interface{}
+	if err := json.Unmarshal(body, &results); err != nil {
+		log.Printf("anime backend sent invalid JSON: %v", err)
+		c.JSON(http.StatusBadGateway, gin.H{"error": "Anime backend sent invalid response"})
+		return
+	}
+
+	utils.LogErr("log anime search", sh.db.LogSearch(req.Query, 0, "anime"))
 
 	c.JSON(http.StatusOK, results)
 }
@@ -160,9 +175,10 @@ func (sh *SearchHandlers) ConcurrentSearch(c *gin.Context) {
 	defer cancel()
 
 	result := ConcurrentSearchResult{}
-	webChan := make(chan []services.SearchResult)
-	animeChan := make(chan []services.SearchResult)
-	errChan := make(chan error)
+	// buffered so the goroutines never block if the handler returns on timeout
+	webChan := make(chan []services.SearchResult, 1)
+	animeChan := make(chan []services.SearchResult, 1)
+	errChan := make(chan error, 2)
 
 	// Web search
 	go func() {
@@ -175,15 +191,19 @@ func (sh *SearchHandlers) ConcurrentSearch(c *gin.Context) {
 		}
 
 		// Fetch and cache
-		searchResults, _ := sh.serpapi.Search(req.Query, 3)
-		sh.cache.Set(ctx, cacheKey, searchResults, 1*time.Hour)
+		searchResults, err := sh.serpapi.Search(req.Query, 3)
+		if err != nil {
+			errChan <- err
+			return
+		}
+		utils.LogErr("cache web results", sh.cache.Set(ctx, cacheKey, searchResults, 1*time.Hour))
 		webChan <- searchResults
 	}()
 
 	// Anime search
 	go func() {
-		pythonURL := "http://localhost:8000/api/search/semantic?query_text=" + req.Query + "&limit=3"
-		resp, err := http.Get(pythonURL)
+		pythonURL := sh.backend + "/api/search/semantic?query_text=" + url.QueryEscape(req.Query) + "&limit=3"
+		resp, err := http.Post(pythonURL, "application/json", nil)
 		if err != nil {
 			errChan <- err
 			return
@@ -191,27 +211,41 @@ func (sh *SearchHandlers) ConcurrentSearch(c *gin.Context) {
 		defer resp.Body.Close()
 
 		var results []services.SearchResult
-		body, _ := io.ReadAll(resp.Body)
-		json.Unmarshal(body, &results)
+		body, err := io.ReadAll(resp.Body)
+		if err == nil {
+			err = json.Unmarshal(body, &results)
+		}
+		if err != nil {
+			errChan <- err
+			return
+		}
 		animeChan <- results
 	}()
 
 	// Wait for results
+	failures := 0
 	for i := 0; i < 2; i++ {
 		select {
 		case web := <-webChan:
 			result.Web = web
 		case anime := <-animeChan:
 			result.Anime = anime
-		case <-errChan:
-			// error logged but continue
+		case err := <-errChan:
+			failures++
+			log.Printf("concurrent search leg failed: %v", err)
 		case <-ctx.Done():
 			c.JSON(http.StatusRequestTimeout, gin.H{"error": "Search timeout"})
 			return
 		}
 	}
 
-	sh.db.LogSearch(req.Query, len(result.Web)+len(result.Anime), "concurrent")
+	// both legs failed: an outage must not look like "no matches"
+	if failures == 2 {
+		c.JSON(http.StatusBadGateway, gin.H{"error": "Search is unavailable"})
+		return
+	}
+
+	utils.LogErr("log concurrent search", sh.db.LogSearch(req.Query, len(result.Web)+len(result.Anime), "concurrent"))
 	c.JSON(http.StatusOK, result)
 }
 
