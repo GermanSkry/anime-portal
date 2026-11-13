@@ -137,24 +137,31 @@ anime-portal/
 
 ---
 
-## Development Status
+## Documentation
 
-| Phase | Status | What's Done |
-|-------|--------|------------|
-| **Phase 1** | ✅ DONE | Data model + PostgreSQL + trailers |
-| **Phase 2** | ✅ DONE | Full-text search, semantic search, AI recommendations |
-| **Phase 4** | ✅ DONE | Chat endpoint, database-first search, SerpAPI web search |
-| **Phase 3** | ⏳ NEXT | React UI for chat + browse dashboard (3-4 days) |
-| **Deployment** | 📋 PLANNED | Railway (backend), Vercel (frontend) |
+| | |
+|---|---|
+| [ARCHITECTURE.md](ARCHITECTURE.md) | How chat and browse work end to end |
+| [DATA_MODEL.md](DATA_MODEL.md) | Database schema |
+| [HISTORY.md](HISTORY.md) | What was built, in order |
+| [ROADMAP.md](ROADMAP.md) | What is still open |
+| [CODE_QUALITY_REPORT.md](CODE_QUALITY_REPORT.md) | Linting, the 23 bugs found, how they were verified |
+| [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) | Hosting options |
+| [docs/kafka-testing.md](docs/kafka-testing.md) | Exercising the consumers locally |
+| [docs/monitoring.md](docs/monitoring.md) | Sentry, PostHog, Langfuse setup |
 
-### What's Working Right Now
+## Status
 
-**Backend (100% functional):**
-- 250 anime in PostgreSQL with vector embeddings
-- 3 search types: full-text, semantic, AI recommendations
-- Smart chat with database-first + optional web search
-- Conversation history support
-- Free tier SerpAPI (250 searches/month)
+All four phases are implemented: data pipeline, backend and AI, the Go search
+service with Kafka consumers, and the React frontend. 250 anime with real
+`all-MiniLM-L6-v2` embeddings, three search types (full-text, semantic,
+AI recommendations), and a LangGraph chat agent that searches the catalogue
+before answering.
+
+Verified end to end in a browser, against live Postgres, Redpanda and both
+services — see [CODE_QUALITY_REPORT.md](CODE_QUALITY_REPORT.md) for what that
+run found and fixed. Known gaps, including `docker compose up`, are in
+[ROADMAP.md](ROADMAP.md).
 
 ---
 

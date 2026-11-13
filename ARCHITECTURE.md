@@ -1,4 +1,8 @@
-# Anime Portal: Chat & Browse Documentation
+# Architecture — Chat & Browse
+
+How the chat and browse paths work end to end. Schema details are in
+[DATA_MODEL.md](DATA_MODEL.md); what is still open is in
+[ROADMAP.md](ROADMAP.md).
 
 ## 💬 AI Chat System
 
@@ -13,7 +17,9 @@ Frontend (Chat.jsx / ChatModal.jsx)
     ↓
 Backend (FastAPI chat endpoint)
     ├─ Extract anime references from Claude's response
-    ├─ Store in PostgreSQL (user_ip, message, response, anime_references)
+    ├─ Publish to Kafka (chat.messages); the Go DB consumer writes the row.
+    │   If the publish fails, the backend writes to PostgreSQL directly so
+    │   a broker outage does not lose the conversation.
     └─ Return response + anime IDs
     ↓
 Frontend renders response
@@ -30,7 +36,7 @@ Previous messages are automatically sent to Claude in each request. Claude maint
 When conversations exceed 5 messages, older messages are automatically summarized into `[Earlier conversation summary]` to save tokens while maintaining context. Only the last 5 messages stay full.
 
 #### ✅ Database-First Search
-Claude receives database results for anime queries. The backend extracts genre/title/plot keywords from user messages and searches PostgreSQL before responding, reducing reliance on web search and saving API quota.
+Claude receives database results for anime queries. The backend extracts the searchable words from the user's message (dropping conversational filler) and searches PostgreSQL before responding, reducing reliance on web search and saving API quota.
 
 #### ✅ Anime Link Extraction
 Claude formats recommendations as `**Title**`. Backend extracts these titles, finds matching anime IDs in database, and stores them. Frontend converts to clickable links pointing to `/title/{id}`.
