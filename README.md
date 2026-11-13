@@ -51,8 +51,8 @@ pip install -r requirements.txt
 cp .env.example .env
 # Edit .env with your DATABASE_URL and CLAUDE_API_KEY
 
-python scripts/fetch_anime.py
-python scripts/ingest_anime.py
+python scripts/fetch_anime_enhanced.py   # downloads data/anime.json from AniList
+python scripts/ingest_anime.py           # creates the schema + embeddings
 
 python main.py  # Runs on http://localhost:8000
 ```
@@ -99,49 +99,40 @@ npm run dev  # Runs on http://localhost:5173
 
 ```
 anime-portal/
-├── backend/
-│   ├── main.py                 # FastAPI app
-│   ├── requirements.txt        # Python dependencies
-│   ├── .env.example            # Environment template
+├── backend/                     # FastAPI + Postgres/pgvector
+│   ├── main.py                  # app entrypoint, Sentry/PostHog/Kafka wiring
+│   ├── requirements.txt
+│   ├── pyproject.toml           # ruff config (lint + format + imports)
 │   ├── app/
-│   │   ├── config.py           # Settings
-│   │   ├── database.py         # DB connection
-│   │   └── routes/
-│   │       ├── anime.py        # Anime endpoints
-│   │       ├── search.py       # Search (Phase 2)
-│   │       ├── stats.py        # Stats (Phase 2)
-│   │       └── recommend.py    # AI (Phase 2)
+│   │   ├── config.py            # settings from env
+│   │   ├── routes/              # anime, search, chat, stats, recommend,
+│   │   │                        #   characters, embeddings
+│   │   └── utils/               # langgraph_agent, claude_agent, embeddings,
+│   │                            #   web_search, langfuse_tracer
 │   ├── scripts/
-│   │   ├── fetch_anime.py      # Download anime data
-│   │   └── ingest_anime.py     # Load into DB
-│   └── data/
-│       └── anime.json          # Cached anime data
+│   │   ├── fetch_anime_enhanced.py   # AniList -> data/anime.json
+│   │   ├── ingest_anime.py           # anime.json -> Postgres + embeddings
+│   │   ├── update_plots.py
+│   │   └── update_trailers.py
+│   └── data/anime.json          # fetched, gitignored
 │
-├── frontend/
+├── go-search/                   # Go search service + Kafka consumers
+│   ├── main.go                  # gin API on :8080
+│   ├── .golangci.yml
+│   ├── handlers/ services/ cache/ db/ kafka/ consumers/ utils/
+│
+├── frontend/                    # React 19 + Vite
 │   ├── src/
-│   │   ├── main.tsx            # React entry
-│   │   ├── App.tsx             # Router
-│   │   ├── pages/
-│   │   │   ├── Home.tsx        # Featured, Collections
-│   │   │   ├── Dashboard.tsx   # Stats
-│   │   │   ├── TitleDetail.tsx # Single anime
-│   │   │   └── Chat.tsx        # AI chat
-│   │   ├── components/
-│   │   │   ├── AnimeCard.tsx
-│   │   │   ├── FilterBar.tsx
-│   │   │   └── ...
-│   │   └── hooks/
-│   │       ├── useAnime.ts
-│   │       └── useRecommendations.ts
-│   ├── package.json
-│   ├── tailwind.config.ts
-│   └── .env.example
+│   │   ├── App.jsx              # router
+│   │   ├── pages/               # Chat, Browse, Explore, Title
+│   │   ├── components/          # ChatModal, MessageRenderer
+│   │   └── services/api.js      # all backend calls (uses VITE_API_URL)
+│   ├── .oxlintrc.json
+│   └── package.json
 │
-├── docs/
-│   └── architecture.md
-├── README.md
-├── .gitignore
-└── PHASE_1_SETUP.md
+├── docker-compose.yml           # postgres(pgvector), redis, redpanda
+├── Makefile
+└── README.md
 ```
 
 ---

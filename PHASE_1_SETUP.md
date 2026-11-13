@@ -203,7 +203,7 @@ curl http://localhost:8000/api/stats/by-year?limit=10
 
 ## Phase 1 Milestones (Verification Checklist)
 
-- [ ] **M1.1:** `python scripts/fetch_anime.py` runs successfully, creates `data/anime.json` with 250+ titles
+- [ ] **M1.1:** `python scripts/fetch_anime_enhanced.py` runs successfully, creates `data/anime.json` with 250+ titles
   - Check: `wc -l data/anime.json` shows ~2500 lines; `jq '.[0] | .title' data/anime.json` shows a title
 
 - [ ] **M1.2:** PostgreSQL schema created with `anime` and `embeddings` tables
