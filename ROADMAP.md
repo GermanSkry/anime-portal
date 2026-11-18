@@ -9,6 +9,36 @@ from this list.
 
 ---
 
+## Next session
+
+Carried over from the first deployment (2026-11-18). None of these break
+anything today.
+
+**Fix the certificate renewal hook.** acme.sh is configured with
+`reloadcmd = cd /opt/anime-portal && docker compose restart`, but nginx serves
+the certificate, not the containers. At renewal nginx would keep serving the
+old one. The cert runs to 16 Feb 2027, so there is time, but it is one command:
+
+```bash
+/root/.acme.sh/acme.sh --install-cert -d anime.necromemecon.party --ecc \
+  --fullchain-file /opt/anime-portal/certs/fullchain.pem \
+  --key-file /opt/anime-portal/certs/privkey.pem \
+  --reloadcmd "nginx -t && systemctl reload nginx"
+```
+
+**Add healthchecks to python-backend and go-search.** `docker compose up -d`
+reports success about a minute before the API can actually serve, because the
+backend loads the embedding model at import. Without a healthcheck, a deploy
+looks finished while requests still 502, and `depends_on: service_healthy`
+cannot be used for anything downstream.
+
+**Decide what to do about port 2096.** It is one of Cloudflare's proxied HTTPS
+ports and works from here, but a visitor on a restrictive network will load the
+site and have every API call fail. The alternative is moving the API behind the
+`:443` SNI stream, which means editing `/etc/nginx/stream.d/443.conf` — shared
+with the VPN, so it carries real risk. Worth measuring before changing: if no
+real visitor hits it, leave it alone.
+
 ## Infrastructure
 
 **`docker compose up` does not work.** Four separate reasons:
