@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"net/http"
 	"os"
 
 	"anime-search-service/cache"
@@ -42,6 +43,25 @@ func main() {
 
 	// Create router
 	router := gin.Default()
+
+	// The browser calls this service directly from the frontend's origin, so it needs
+	// its own CORS headers; the Python backend sets its own and nginx must not add a
+	// second copy. CORS_ORIGIN pins it to the deployed frontend; "*" in development.
+	corsOrigin := os.Getenv("CORS_ORIGIN")
+	if corsOrigin == "" {
+		corsOrigin = "*"
+	}
+	router.Use(func(c *gin.Context) {
+		c.Header("Access-Control-Allow-Origin", corsOrigin)
+		c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		c.Header("Access-Control-Allow-Headers", "Content-Type")
+		c.Header("Vary", "Origin")
+		if c.Request.Method == http.MethodOptions {
+			c.AbortWithStatus(http.StatusNoContent)
+			return
+		}
+		c.Next()
+	})
 
 	// Health check
 	router.GET("/health", func(c *gin.Context) {
