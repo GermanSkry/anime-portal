@@ -14,6 +14,30 @@ from this list.
 Carried over from the first deployment (2026-11-18). None of these break
 anything today.
 
+**Deploy from CI instead of building on the VPS.** Today a backend change
+means four manual commands on the server, and the build itself runs on a single
+vCPU — it saturates the box for 15 to 40 minutes, slowing everything else
+hosted there. The repository is public, so GitHub Actions minutes are free.
+
+Shape: the runner builds the image and pushes it to `ghcr.io`; the VPS only
+pulls. That moves the expensive part onto a 4-vCPU runner and turns deployment
+on the server into a one-minute `pull` plus `up -d`.
+
+- new workflow `deploy.yml`, triggered on push to `main` **and** by
+  `workflow_dispatch`, with `needs:` on the existing Code Quality jobs so a
+  failing commit cannot reach the server
+- build and push `ghcr.io/germanskry/anime-portal-backend` and
+  `…-go-search`, tagged with the commit SHA as well as `latest`, so a rollback
+  is `docker compose pull` of an older tag
+- `docker-compose.yml` swaps `build:` for `image:` on both app services
+- a dedicated SSH deploy key in repository secrets, restricted to the deploy
+  command — not a personal key
+- run it once manually before trusting it on every merge
+
+Watch out for: the backend image is 2.12 GB, so the VPS pulls that on a cold
+cache; in practice only the changed application layer moves, because the torch
+layer is stable. Keep a documented manual path for when CI is unavailable.
+
 **Fix the certificate renewal hook.** acme.sh is configured with
 `reloadcmd = cd /opt/anime-portal && docker compose restart`, but nginx serves
 the certificate, not the containers. At renewal nginx would keep serving the
