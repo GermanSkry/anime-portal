@@ -82,6 +82,7 @@ services:
       REDIS_URL: redis://redis:6379
       KAFKA_BROKERS: redpanda:9092
       PYTHON_API_URL: http://python-backend:8000
+      SERPAPI_KEY: ${SERPAPI_KEY}
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
       SENTRY_DSN: ${SENTRY_DSN}
       POSTHOG_API_KEY: ${POSTHOG_API_KEY}
