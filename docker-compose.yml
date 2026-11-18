@@ -1,7 +1,6 @@
-version: '3.8'
-
 services:
   postgres:
+    restart: unless-stopped
     image: pgvector/pgvector:pg15  # stock postgres:15 has no `vector` type; semantic search needs it
     container_name: anime_db
     environment:
@@ -9,7 +8,7 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: anime_db
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -19,10 +18,11 @@ services:
       retries: 5
 
   redis:
+    restart: unless-stopped
     image: redis:7-alpine
     container_name: anime_cache
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -32,6 +32,7 @@ services:
       retries: 5
 
   python-backend:
+    restart: unless-stopped
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -41,26 +42,29 @@ services:
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
       SERPAPI_KEY: ${SERPAPI_KEY}
       MODEL_NAME: anthropic/claude-haiku-5.5
+      KAFKA_BROKERS: redpanda:9092
       PORT: 8000
-      ENVIRONMENT: development
+      ENVIRONMENT: ${ENVIRONMENT:-production}
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8010:8000"
     depends_on:
       postgres:
         condition: service_healthy
     volumes:
       - ./backend:/app
-    command: python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    command: python -m uvicorn main:app --host 0.0.0.0 --port 8000
 
   redpanda:
+    restart: unless-stopped
     image: redpandadata/redpanda:latest
     container_name: anime_kafka
-    command: redpanda start --overprovisioned --smp 1 --memory 1G --reserve-memory 0M --node-id 0 --check=false
-    environment:
-      REDPANDA_ADVERTISED_KAFKA_API_ADDRESSES: redpanda:29092
+    command: >
+      redpanda start --overprovisioned --smp 1 --memory 1G --reserve-memory 0M
+      --node-id 0 --check=false
+      --kafka-addr PLAINTEXT://0.0.0.0:9092
+      --advertise-kafka-addr PLAINTEXT://redpanda:9092
     ports:
-      - "9092:9092"      # Kafka API
-      - "9644:9644"      # Admin API
+      - "127.0.0.1:9644:9644"      # Admin API
     healthcheck:
       test: ["CMD", "rpk", "cluster", "info"]
       interval: 10s
@@ -68,21 +72,24 @@ services:
       retries: 5
 
   go-search:
+    restart: unless-stopped
     build:
       context: ./go-search
       dockerfile: Dockerfile
     container_name: anime_search
     environment:
-      DATABASE_URL: postgres://postgres:password@postgres:5432/anime_db
+      DATABASE_URL: postgres://postgres:password@postgres:5432/anime_db?sslmode=disable
       REDIS_URL: redis://redis:6379
-      KAFKA_BROKERS: redpanda:29092
+      KAFKA_BROKERS: redpanda:9092
       PYTHON_API_URL: http://python-backend:8000
+      SERPAPI_KEY: ${SERPAPI_KEY}
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
       SENTRY_DSN: ${SENTRY_DSN}
       POSTHOG_API_KEY: ${POSTHOG_API_KEY}
       PORT: 8001
-      ENVIRONMENT: development
+      ENVIRONMENT: ${ENVIRONMENT:-production}
     ports:
-      - "8001:8001"
+      - "127.0.0.1:8011:8001"
     depends_on:
       postgres:
         condition: service_healthy
