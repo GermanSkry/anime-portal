@@ -6,12 +6,12 @@ and `ANIME_PORTAL_VPS_DEPLOYMENT.md`.
 | | |
 |---|---|
 | Frontend | <https://anime-portal-gules.vercel.app> (Vercel, auto-deploys on push to `main`) |
-| API | `https://anime.necromemecon.party:2096` (Hostinger VPS, `76.13.250.179`) |
+| API | `https://anime.necromemecon.party:2096` (Hostinger VPS, behind Cloudflare) |
 | Cost | €5/month, VPS only |
 
 ```
 browser ──► Vercel (static React build)
-   └──────► https://anime.necromemecon.party:2096   nginx, TLS
+   └──────► Cloudflare (proxied) ──► https://anime.necromemecon.party:2096   nginx, TLS
                 ├── /api/search/{web,anime,concurrent,history,stats} → go-search  127.0.0.1:8011
                 └── /api/…                                           → python-api 127.0.0.1:8010
                                                                           │
@@ -185,9 +185,23 @@ until someone reloads it. Fix (needs running on the VPS):
   --reloadcmd "nginx -t && systemctl reload nginx"
 ```
 
-**Port 2096 is non-standard.** A visitor on a restrictive network will load the
-site but every API call will fail. Moving the API behind the `:443` SNI stream
-would fix it, at the cost of editing the shared stream config.
+**Port 2096 is still in the URL.** The hostname is proxied by Cloudflare, so
+the origin IP is hidden and DDoS protection applies, but the browser still
+connects on `:2096` — a visitor on a network that blocks non-standard ports
+will load the site and have every API call fail.
+
+The fix is a Cloudflare **Origin Rule** rewriting the destination port to 2096,
+which lets visitors use `https://anime.necromemecon.party` with no port:
+
+```
+browser ──:443──► Cloudflare ──:2096──► nginx
+```
+
+Then drop `:2096` from both lines of `frontend/.env.production` and redeploy.
+This avoids editing `/etc/nginx/stream.d/443.conf`, which is shared with
+another service on the host. Without the rule, plain `:443` returns 404,
+because Cloudflare reaches the origin on 443 where the SNI router does not know
+this hostname.
 
 **`docker compose` has no healthcheck on the two app services**, so `up -d`
 reports success before the API can serve.

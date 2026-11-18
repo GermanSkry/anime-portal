@@ -9,24 +9,85 @@ from this list.
 
 ---
 
+## Next session
+
+Carried over from the first deployment (2026-11-18). None of these break
+anything today.
+
+**Deploy from CI instead of building on the VPS.** Today a backend change
+means four manual commands on the server, and the build itself runs on a single
+vCPU — it saturates the box for 15 to 40 minutes, slowing everything else
+hosted there. The repository is public, so GitHub Actions minutes are free.
+
+Shape: the runner builds the image and pushes it to `ghcr.io`; the VPS only
+pulls. That moves the expensive part onto a 4-vCPU runner and turns deployment
+on the server into a one-minute `pull` plus `up -d`.
+
+- new workflow `deploy.yml`, triggered on push to `main` **and** by
+  `workflow_dispatch`, with `needs:` on the existing Code Quality jobs so a
+  failing commit cannot reach the server
+- build and push `ghcr.io/germanskry/anime-portal-backend` and
+  `…-go-search`, tagged with the commit SHA as well as `latest`, so a rollback
+  is `docker compose pull` of an older tag
+- `docker-compose.yml` swaps `build:` for `image:` on both app services
+- a dedicated SSH deploy key in repository secrets, restricted to the deploy
+  command — not a personal key
+- run it once manually before trusting it on every merge
+
+Watch out for: the backend image is 2.12 GB, so the VPS pulls that on a cold
+cache; in practice only the changed application layer moves, because the torch
+layer is stable. Keep a documented manual path for when CI is unavailable.
+
+**Fix the certificate renewal hook.** acme.sh is configured with
+`reloadcmd = cd /opt/anime-portal && docker compose restart`, but nginx serves
+the certificate, not the containers. At renewal nginx would keep serving the
+old one. The cert runs to 16 Feb 2027, so there is time, but it is one command:
+
+```bash
+/root/.acme.sh/acme.sh --install-cert -d anime.necromemecon.party --ecc \
+  --fullchain-file /opt/anime-portal/certs/fullchain.pem \
+  --key-file /opt/anime-portal/certs/privkey.pem \
+  --reloadcmd "nginx -t && systemctl reload nginx"
+```
+
+**Add healthchecks to python-backend and go-search.** `docker compose up -d`
+reports success about a minute before the API can actually serve, because the
+backend loads the embedding model at import. Without a healthcheck, a deploy
+looks finished while requests still 502, and `depends_on: service_healthy`
+cannot be used for anything downstream.
+
+**Drop the port from the API URL.** The hostname is now proxied by Cloudflare,
+so the origin IP is hidden, but the browser still connects on `:2096` and a
+network that blocks non-standard ports breaks every API call.
+
+A Cloudflare **Origin Rule** rewriting the destination port to 2096 lets
+visitors use `https://anime.necromemecon.party` with no port. Two steps:
+
+1. Cloudflare → Rules → Origin Rules → for `anime.necromemecon.party`, set the
+   destination port to 2096
+2. drop `:2096` from both lines of `frontend/.env.production`, merge, Vercel
+   redeploys
+
+This replaces the earlier plan of moving the API behind the `:443` SNI stream,
+which would have meant editing a config shared with another service on the
+host. The rule avoids that file entirely.
+
+Verify before and after with `curl --resolve` against the origin, so a 522 at
+the edge is not mistaken for a dead API. Confirm Origin Rules are available on
+the current Cloudflare plan first.
+
 ## Infrastructure
 
-**`docker compose up` does not work.** Four separate reasons:
+**Compose is only configured for the server.** `docker compose up` now works
+on the VPS, but a local run still needs a `.env` at the project root — the keys
+live in `backend/.env` and compose reads `${OPENROUTER_API_KEY}` from the root.
+`env_file: ./backend/.env` on `python-backend` and `go-search` would make a
+clone work with no extra step.
 
-1. The dead `anime_db` and `anime_kafka` containers hold those names. Both
-   crashed on a full Docker disk, so they hold no data — `docker rm` them.
-2. Compose reads `${OPENROUTER_API_KEY}` from a `.env` at the project root,
-   which does not exist; the keys live in `backend/.env`. The containerised
-   backend therefore starts with a blank key and chat is dead. Fix:
-   `env_file: ./backend/.env` on `python-backend` and `go-search`.
-3. Nothing runs `ingest_anime.py`, so the database comes up empty. Add a
-   one-shot `ingest` service or document the step.
-4. No `.dockerignore` anywhere, and `backend/Dockerfile` does `COPY . .` —
-   which pulls 1.2 GB of `venv/` and 87 MB of `models/` into the build
-   context and the image.
-
-**`version: '3.8'`** in `docker-compose.yml` is obsolete and warns on every
-command.
+**Nothing runs the ingest.** `docker compose up` brings up an empty database;
+`scripts/ingest_anime.py` has to be run by hand, and `backend/data/anime.json`
+is gitignored so it is not there after a clone. A one-shot `ingest` service, or
+a `make` target that fetches and ingests, would close the gap.
 
 ## Backend
 
