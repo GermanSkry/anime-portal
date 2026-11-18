@@ -1,5 +1,7 @@
 # 🎬 Anime Portal
 
+**Live:** <https://anime-portal-gules.vercel.app>
+
 A full-stack web application for discovering, searching, and getting AI-powered recommendations for anime.
 
 **Live:** Coming soon on Vercel + Railway  
@@ -146,7 +148,7 @@ anime-portal/
 | [HISTORY.md](HISTORY.md) | What was built, in order |
 | [ROADMAP.md](ROADMAP.md) | What is still open |
 | [CODE_QUALITY_REPORT.md](CODE_QUALITY_REPORT.md) | Linting, the 23 bugs found, how they were verified |
-| [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) | Hosting options |
+| [DEPLOYMENT.md](DEPLOYMENT.md) | What is deployed where, VPS ports, how to ship a change |
 | [docs/kafka-testing.md](docs/kafka-testing.md) | Exercising the consumers locally |
 | [docs/monitoring.md](docs/monitoring.md) | Sentry, PostHog, Langfuse setup |
 
