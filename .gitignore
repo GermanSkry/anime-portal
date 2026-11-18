@@ -56,3 +56,8 @@ frontend/dist/
 
 # HF model cache (downloaded at runtime)
 backend/models/
+
+# TLS certs and local env copies on the server
+certs/
+.env.production
+.env.bak.*
