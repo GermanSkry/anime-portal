@@ -133,6 +133,39 @@ runs as production to Sentry and PostHog.
 
 ---
 
+## Port rules on this host
+
+The VPS runs other services. The anime portal must stay out of their way, so
+they can be restarted at any time without anyone touching them.
+
+| Port | Owner | |
+|---|---|---|
+| 8000 | another service | **never bind this** |
+| 8001, 8443 | another service | **never bind this** |
+| 443 | SNI stream router | do not add an http server here |
+| 2096 | nginx | shared by SNI; the anime vhost is `server_name anime.necromemecon.party` |
+| 8010, 8011, 5432, 6379, 9644 | anime portal | all bound to `127.0.0.1` only |
+
+Enforced in three places:
+
+- `docker-compose.yml` publishes every port as `127.0.0.1:<port>`, and the two
+  app services use 8010 and 8011.
+- `/opt/anime-portal/.env` sets `PORT=8010`. It previously said `8000`, and a
+  manual `python main.py` on the host took that port from its owner and left a
+  hung process behind.
+- `backend/main.py` defaults to `127.0.0.1` when run directly. The container
+  passes `--host 0.0.0.0` on the command line, so the deployment is unaffected.
+
+Check after any change:
+
+```bash
+docker ps --format '{{.Names}}' | grep '^anime_' | while read c; do docker port "$c"; done
+```
+
+Every line must start with `127.0.0.1`, and none may be 8000, 8001 or 8443.
+
+---
+
 ## Operating it
 
 ```bash
