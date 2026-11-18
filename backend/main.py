@@ -114,5 +114,10 @@ app.include_router(anime.router)
 
 if __name__ == "__main__":
     import uvicorn
+
+    # Default to loopback. The container passes --host 0.0.0.0 on the command line,
+    # so this only affects running the file directly — where binding every interface
+    # once cost another service on the host its port.
+    host = os.getenv("HOST", "127.0.0.1")
     port = int(os.getenv("PORT", "8000"))
-    uvicorn.run(app, host="0.0.0.0", port=port)  # noqa: S104 - binds all interfaces on purpose, it runs in a container
+    uvicorn.run(app, host=host, port=port)
