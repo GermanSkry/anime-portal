@@ -82,11 +82,9 @@ not return yet.
 **499 pages of 5.** `itemsPerPage` is 5, which was fine at 100 results and is
 not at 2,491. Either raise it or lean harder on the filters.
 
-**Re-ingesting renumbers every anime.** `ingest_anime.py` deletes all rows and
-re-inserts, and `id` is a plain SERIAL, so ids shift on every run — they are
-2751-5250 now. Any bookmarked `/title/<id>` breaks, and
-`chat_history.anime_context_id` points at the wrong title. Upserting on
-`anilist_id` instead would keep them stable.
+**Stale titles are never removed.** Ingest upserts and does not prune, so a
+title that drops out of AniList's popular 2,500 stays in the database. Safer
+than deleting rows other tables may point at, but the catalogue only grows.
 
 **Browse still draws from the top 100 by rating.** Deliberate — it shows four
 cards per section — but it means the genre rows are "best of", not a sample of

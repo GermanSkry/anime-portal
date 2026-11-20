@@ -78,9 +78,17 @@ docker compose build python-backend  # or go-search; `build:` is still defined
 docker compose up -d python-backend go-search
 ```
 
-**Data**
+**Data** — ingest runs automatically on merge, but only when a commit touches
+`ingest_anime.py`, `fetch_anime_enhanced.py`, `embeddings.py` or
+`query_terms.py`. It is safe to run often: it upserts on `anilist_id` and only
+recomputes an embedding when that title's plot changed, so an unchanged
+catalogue takes seconds rather than minutes, and anime ids stay stable across
+runs.
+
+By hand, for a catalogue refresh:
 
 ```bash
+docker compose exec python-backend python scripts/fetch_anime_enhanced.py   # ~4 min, AniList is rate limited
 docker compose exec python-backend python scripts/ingest_anime.py
 ```
 
