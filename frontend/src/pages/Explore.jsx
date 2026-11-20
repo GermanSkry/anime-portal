@@ -6,6 +6,15 @@ import { animeAPI } from '../services/api'
 // Empty default - will be populated from API
 const defaultResults = []
 
+const DEFAULT_FILTERS = {
+  ratingMin: 0,
+  ratingMax: 10,
+  genres: [],
+  yearMin: 1970,
+  yearMax: 2026,
+  studio: 'Any Studio'
+}
+
 export default function Explore() {
   const location = useLocation()
   const [allResults, setAllResults] = useState(defaultResults) // All unfiltered results
@@ -14,14 +23,7 @@ export default function Explore() {
   const [openPopup, setOpenPopup] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 5
-  const [filters, setFilters] = useState({
-    ratingMin: 0,
-    ratingMax: 10,
-    genres: [],
-    yearMin: 1970,
-    yearMax: 2026,
-    studio: 'Any Studio'
-  })
+  const [filters, setFilters] = useState(DEFAULT_FILTERS)
 
   // Apply filter from Title page navigation
   useEffect(() => {
@@ -113,6 +115,19 @@ export default function Explore() {
     })
   }, [currentPage, results])
 
+  // one source of truth for "this filter is doing something", used by the tab
+  // highlight, the badges and the reset button below
+  const ratingFiltered = filters.ratingMin > DEFAULT_FILTERS.ratingMin || filters.ratingMax < DEFAULT_FILTERS.ratingMax
+  const genreFiltered = filters.genres.length > 0
+  const yearFiltered = filters.yearMin > DEFAULT_FILTERS.yearMin || filters.yearMax < DEFAULT_FILTERS.yearMax
+  const studioFiltered = filters.studio !== DEFAULT_FILTERS.studio
+  const hasFilters = ratingFiltered || genreFiltered || yearFiltered || studioFiltered
+
+  const clearFilters = () => {
+    setFilters(DEFAULT_FILTERS)
+    setOpenPopup(null)
+  }
+
   return (
     <div className="explore-wrapper">
       <div className="explore-header">
@@ -121,25 +136,25 @@ export default function Explore() {
 
       <div className="filter-bar">
         <button
-          className={`filter-tab ${filters.ratingMin > 0 || filters.ratingMax < 10 ? 'active' : ''}`}
+          className={`filter-tab ${ratingFiltered ? 'active' : ''}`}
           onClick={() => setOpenPopup(openPopup === 'rating' ? null : 'rating')}
         >
           ⭐ Rating
         </button>
         <button
-          className={`filter-tab ${filters.genres.length > 0 ? 'active' : ''}`}
+          className={`filter-tab ${genreFiltered ? 'active' : ''}`}
           onClick={() => setOpenPopup(openPopup === 'genre' ? null : 'genre')}
         >
           🎬 Genre
         </button>
         <button
-          className={`filter-tab ${filters.yearMin > 1970 || filters.yearMax < 2026 ? 'active' : ''}`}
+          className={`filter-tab ${yearFiltered ? 'active' : ''}`}
           onClick={() => setOpenPopup(openPopup === 'year' ? null : 'year')}
         >
           📅 Year
         </button>
         <button
-          className={`filter-tab ${filters.studio !== 'Any Studio' ? 'active' : ''}`}
+          className={`filter-tab ${studioFiltered ? 'active' : ''}`}
           onClick={() => setOpenPopup(openPopup === 'studio' ? null : 'studio')}
         >
           🎨 Studio
@@ -257,21 +272,23 @@ export default function Explore() {
       </div>
 
       {/* Active filters display */}
-      {(filters.ratingMin > 0 || filters.ratingMax < 10 || filters.genres.length > 0 ||
-        filters.yearMin > 1970 || filters.yearMax < 2026 || filters.studio !== 'Any Studio') && (
+      {hasFilters && (
         <div className="active-filters">
-          {filters.ratingMin > 0 || filters.ratingMax < 10 ? (
+          {ratingFiltered && (
             <div className="filter-badge">⭐ Rating: {filters.ratingMin}-{filters.ratingMax}</div>
-          ) : null}
+          )}
           {filters.genres.map(genre => (
             <div key={genre} className="filter-badge">🎬 {genre}</div>
           ))}
-          {filters.yearMin > 1970 || filters.yearMax < 2026 ? (
+          {yearFiltered && (
             <div className="filter-badge">📅 Year: {filters.yearMin}-{filters.yearMax}</div>
-          ) : null}
-          {filters.studio !== 'Any Studio' ? (
+          )}
+          {studioFiltered && (
             <div className="filter-badge">🎨 {filters.studio}</div>
-          ) : null}
+          )}
+          <button className="clear-filters-btn" onClick={clearFilters}>
+            ✕ Clear filters
+          </button>
         </div>
       )}
 

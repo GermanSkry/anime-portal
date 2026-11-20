@@ -45,7 +45,7 @@ else:
 # Import routers
 from app.routes import anime, characters, chat, embeddings, recommend, search, stats  # noqa: E402 - must follow Sentry init above
 
-app = FastAPI(title="Anime Portal API", version="0.1.0")
+app = FastAPI(title="AnimeVibing API", version="0.1.0")
 
 # CORS middleware for frontend
 app.add_middleware(
@@ -59,7 +59,7 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     """Initialize observability and Kafka on startup"""
-    logger.info("🚀 Anime Portal API Starting")
+    logger.info("🚀 AnimeVibing API Starting")
     logger.info(f"📊 Langfuse Dashboard: {get_dashboard_url()}")
 
     # Initialize Kafka producer (lazy loads on first use)
@@ -86,7 +86,7 @@ async def health():
 
 @app.get("/")
 async def root():
-    return {"message": "Anime Portal API - Ready"}
+    return {"message": "AnimeVibing API - Ready"}
 
 @app.get("/observability")
 async def observability():
