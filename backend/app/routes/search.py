@@ -1,9 +1,10 @@
 
 import psycopg
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 from pydantic import BaseModel
 
 from app.config import settings
+from app.utils.analytics import client_id, track
 from app.utils.embeddings import generate_embedding
 
 router = APIRouter(prefix="/api/search", tags=["search"])
@@ -29,6 +30,7 @@ class SemanticSearchResponse(BaseModel):
 
 @router.get("")
 async def search_anime(
+    req: Request,
     q: str = Query(..., min_length=1),
     genres: str = Query(None),
     year_min: int = Query(None),
@@ -96,6 +98,17 @@ async def search_anime(
             await cur.execute(query, params)
             results = await cur.fetchall()
 
+            # zero_results is the one number that says the catalogue is failing people
+            track(
+                client_id(req),
+                "search_performed",
+                search_type="fulltext",
+                result_count=len(results),
+                zero_results=len(results) == 0,
+                query_length=len(q),
+                has_filters=any(x is not None for x in (genres, year_min, year_max, studios)),
+            )
+
             return [
                 AnimeSearchResponse(
                     id=r[0],
@@ -114,7 +127,7 @@ async def search_anime(
         await conn.close()
 
 @router.post("/semantic")
-async def semantic_search(query_text: str = Query(..., min_length=1), limit: int = Query(10, ge=1, le=50)):
+async def semantic_search(req: Request, query_text: str = Query(..., min_length=1), limit: int = Query(10, ge=1, le=50)):
     """Find anime by semantic similarity to query"""
     conn = await psycopg.AsyncConnection.connect(settings.database_url)
 
@@ -137,6 +150,16 @@ async def semantic_search(query_text: str = Query(..., min_length=1), limit: int
             """, (embedding_str, limit))
 
             results = await cur.fetchall()
+
+            track(
+                client_id(req),
+                "search_performed",
+                search_type="semantic",
+                result_count=len(results),
+                zero_results=len(results) == 0,
+                query_length=len(query_text),
+                top_similarity=round(results[0][5], 3) if results else None,
+            )
 
             return [
                 SemanticSearchResponse(

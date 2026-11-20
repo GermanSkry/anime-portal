@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"anime-search-service/cache"
@@ -56,6 +57,32 @@ func NewSearchHandlers(redisClient *cache.RedisCache, dbConn *db.Connection) *Se
 	}
 }
 
+// visitor identifies who to attribute an event to. The browser sends PostHog's
+// own anonymous id as X-Client-Id, so its events and ours land on one person.
+func visitor(c *gin.Context) string {
+	if id := strings.TrimSpace(c.GetHeader("X-Client-Id")); id != "" {
+		if len(id) > 200 {
+			id = id[:200]
+		}
+		return id
+	}
+	return c.ClientIP()
+}
+
+// callBackend posts to the Python API, carrying the visitor id so its analytics
+// events are attributed to the same person rather than to this service's IP.
+func callBackend(ctx context.Context, url, who string) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if who != "" {
+		req.Header.Set("X-Client-Id", who)
+	}
+	return http.DefaultClient.Do(req)
+}
+
 // SearchWeb searches the web with caching
 func (sh *SearchHandlers) SearchWeb(c *gin.Context) {
 	var req SearchRequest
@@ -67,6 +94,7 @@ func (sh *SearchHandlers) SearchWeb(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	who := visitor(c)
 	startTime := time.Now()
 	// Normalize query for better cache hits
 	// "best anime 2026" and "anime best 2026" become same cache key
@@ -76,7 +104,7 @@ func (sh *SearchHandlers) SearchWeb(c *gin.Context) {
 	// Check cache first (exact + normalized match)
 	var results []services.SearchResult
 	if err := sh.cache.Get(ctx, cacheKey, &results); err == nil {
-		utils.LogErr("track cache hit", sh.analytics.TrackCacheHit(req.Query))
+		utils.LogErr("track cache hit", sh.analytics.TrackCacheHit(who, req.Query, "exact"))
 		utils.LogErr("log cached search", sh.db.LogSearch(req.Query, len(results), "web_cached"))
 		c.JSON(http.StatusOK, results)
 		return
@@ -91,7 +119,7 @@ func (sh *SearchHandlers) SearchWeb(c *gin.Context) {
 		if similarKey, err := sh.cache.GetSimilarQueries(ctx, embedding, 0.78); err == nil && similarKey != "" {
 			// Found semantic match! Extract original query and use cache
 			if err := sh.cache.Get(ctx, similarKey, &results); err == nil {
-				utils.LogErr("track cache hit", sh.analytics.TrackCacheHit(req.Query))
+				utils.LogErr("track cache hit", sh.analytics.TrackCacheHit(who, req.Query, "semantic"))
 				utils.LogErr("log semantic cached search", sh.db.LogSearch(req.Query, len(results), "web_semantic_cached"))
 				log.Printf("Semantic cache hit: '%s' matched '%s'", req.Query, similarKey)
 				c.JSON(http.StatusOK, results)
@@ -101,11 +129,11 @@ func (sh *SearchHandlers) SearchWeb(c *gin.Context) {
 	}
 
 	// Cache miss - fetch from SerpAPI
-	utils.LogErr("track cache miss", sh.analytics.TrackCacheMiss(req.Query))
+	utils.LogErr("track cache miss", sh.analytics.TrackCacheMiss(who, req.Query))
 
 	results, err := sh.serpapi.Search(req.Query, 3)
 	if err != nil {
-		utils.LogErr("track failed serpapi call", sh.analytics.TrackAPICall("serpapi", false, time.Since(startTime)))
+		utils.LogErr("track failed serpapi call", sh.analytics.TrackAPICall(who, "serpapi", false, time.Since(startTime)))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to search web"})
 		return
 	}
@@ -120,8 +148,8 @@ func (sh *SearchHandlers) SearchWeb(c *gin.Context) {
 		log.Printf("Stored embedding for '%s'", req.Query)
 	}
 
-	utils.LogErr("track serpapi call", sh.analytics.TrackAPICall("serpapi", true, time.Since(startTime)))
-	utils.LogErr("track search", sh.analytics.TrackSearch(req.Query, len(results), "web", time.Since(startTime)))
+	utils.LogErr("track serpapi call", sh.analytics.TrackAPICall(who, "serpapi", true, time.Since(startTime)))
+	utils.LogErr("track search", sh.analytics.TrackSearch(who, req.Query, len(results), "web", time.Since(startTime)))
 	utils.LogErr("log web search", sh.db.LogSearch(req.Query, len(results), "web"))
 
 	c.JSON(http.StatusOK, results)
@@ -136,8 +164,10 @@ func (sh *SearchHandlers) SearchAnime(c *gin.Context) {
 	}
 
 	// Call Python FastAPI backend
+	startTime := time.Now()
+	who := visitor(c)
 	pythonURL := sh.backend + "/api/search/semantic?query_text=" + url.QueryEscape(req.Query) + "&limit=3"
-	resp, err := http.Post(pythonURL, "application/json", nil)
+	resp, err := callBackend(c.Request.Context(), pythonURL, who)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query anime database"})
 		return
@@ -159,6 +189,7 @@ func (sh *SearchHandlers) SearchAnime(c *gin.Context) {
 	}
 
 	utils.LogErr("log anime search", sh.db.LogSearch(req.Query, 0, "anime"))
+	utils.LogErr("track anime search", sh.analytics.TrackSearch(who, req.Query, 0, "anime", time.Since(startTime)))
 
 	c.JSON(http.StatusOK, results)
 }
@@ -174,6 +205,7 @@ func (sh *SearchHandlers) ConcurrentSearch(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
+	who := visitor(c)
 	result := ConcurrentSearchResult{}
 	// buffered so the goroutines never block if the handler returns on timeout
 	webChan := make(chan []services.SearchResult, 1)
@@ -203,7 +235,7 @@ func (sh *SearchHandlers) ConcurrentSearch(c *gin.Context) {
 	// Anime search
 	go func() {
 		pythonURL := sh.backend + "/api/search/semantic?query_text=" + url.QueryEscape(req.Query) + "&limit=3"
-		resp, err := http.Post(pythonURL, "application/json", nil)
+		resp, err := callBackend(ctx, pythonURL, who)
 		if err != nil {
 			errChan <- err
 			return

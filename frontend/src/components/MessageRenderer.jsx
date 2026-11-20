@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { track } from '../services/analytics'
 
 export default function MessageRenderer({ text, animeReferences = [] }) {
   if (!animeReferences || animeReferences.length === 0) {
@@ -37,6 +38,7 @@ export default function MessageRenderer({ text, animeReferences = [] }) {
           <Link
             key={i}
             to={`/title/${anime.id}`}
+            onClick={() => track('anime_opened', { source: 'chat', anime_id: anime.id })}
             style={{
               color: 'var(--accent-end)',
               fontWeight: 600,

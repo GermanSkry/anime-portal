@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import './Chat.css'
 import { chatAPI } from '../services/api'
+import { track } from '../services/analytics'
 import MessageRenderer from '../components/MessageRenderer'
 
 const GREETING = { role: 'assistant', text: '👋 What anime are you looking for?' }
@@ -37,6 +38,7 @@ export default function Chat() {
   }
 
   const startNewChat = () => {
+    track('new_chat_started', { messages_discarded: messages.length - 1 })
     setMessages([GREETING])
     setInput('')
     // the conversation just finished is already saved server-side; refetch so it

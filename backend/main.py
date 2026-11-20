@@ -18,7 +18,8 @@ if sentry_dsn:
     sentry_sdk.init(
         dsn=sentry_dsn,
         environment=os.getenv("ENVIRONMENT", "development"),
-        traces_sample_rate=1.0,
+        # 10%: enough signal for a portfolio, well inside the free quota
+        traces_sample_rate=float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.1")),
         integrations=[
             LoggingIntegration(level=logging.INFO, event_level=logging.ERROR),
         ],

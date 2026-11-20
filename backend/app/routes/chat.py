@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import re
+import time
 import uuid
 from datetime import datetime
 
@@ -12,6 +13,7 @@ from fastapi import APIRouter, Query, Request
 from pydantic import BaseModel
 
 from app.config import settings
+from app.utils.analytics import client_id, set_visitor, track
 from app.utils.langfuse_tracer import log_trace_event, set_user_context, trace_llm_call
 from app.utils.langgraph_agent import run_agent
 
@@ -141,6 +143,9 @@ async def chat(request: ChatRequest, req: Request) -> ChatResponse:
     """Chat with LangGraph agent. Publishes to Kafka for async processing."""
 
     user_ip = get_client_ip(req)
+    who = client_id(req)
+    set_visitor(who)
+    started = time.perf_counter()
     set_user_context(user_ip, tags=["anime-portal"])
 
     log_trace_event("chat_start", {"user": user_ip, "message": request.message[:50]})
@@ -180,6 +185,21 @@ async def chat(request: ChatRequest, req: Request) -> ChatResponse:
             anime_references.append(AnimeReference(title=title, id=anime_id))
 
     log_trace_event("references_found", {"count": len(anime_references)})
+
+    # which tool the agent reached for, and whether it found anything. A rising
+    # share of tool="none" is the signal that the catalogue search has stopped working.
+    tool_used = tool_calls[0]["tool"] if tool_calls else "none"
+    track(
+        who,
+        "chat_message_sent",
+        duration_ms=round((time.perf_counter() - started) * 1000),
+        tool_used=tool_used,
+        anime_references=len(anime_references),
+        had_anime_refs=len(anime_references) > 0,
+        message_length=len(request.message),
+        response_length=len(response_text),
+        has_anime_context=request.anime_id is not None,
+    )
 
     # Publish to Kafka for async processing (DB save, search indexing)
     try:

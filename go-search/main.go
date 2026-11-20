@@ -21,9 +21,10 @@ func main() {
 	sentryDSN := os.Getenv("SENTRY_DSN")
 	if sentryDSN != "" {
 		if err := sentry.Init(sentry.ClientOptions{
-			Dsn:              sentryDSN,
-			Environment:      os.Getenv("ENVIRONMENT"),
-			TracesSampleRate: 1.0,
+			Dsn:         sentryDSN,
+			Environment: os.Getenv("ENVIRONMENT"),
+			// 10%: enough signal for a portfolio, well inside the free quota
+			TracesSampleRate: 0.1,
 		}); err != nil {
 			log.Printf("Sentry initialization failed: %v", err)
 		}

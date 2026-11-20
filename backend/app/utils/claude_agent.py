@@ -1,10 +1,12 @@
 """Claude agent with smart database-first search + optional web search"""
 import re
+import time
 
 import psycopg
 from openai import OpenAI
 
 from app.config import settings
+from app.utils.analytics import current_visitor, track
 from app.utils.web_search import search_web
 
 client = OpenAI(
@@ -158,10 +160,31 @@ async def chat_with_claude(messages: list[dict]) -> str:
     augmented_messages[-1]["content"] = augmented_content
 
     # Get response from Claude
-    response = client.chat.completions.create(
+    started = time.perf_counter()
+    try:
+        response = client.chat.completions.create(
+            model=settings.model_name,
+            max_tokens=2048,
+            messages=augmented_messages
+        )
+    except Exception as e:
+        track(current_visitor(), "llm_call", model=settings.model_name, success=False,
+              duration_ms=round((time.perf_counter() - started) * 1000), error=type(e).__name__)
+        raise
+
+    # token counts are what the bill is made of, so record them per call
+    usage = getattr(response, "usage", None)
+    track(
+        current_visitor(),
+        "llm_call",
         model=settings.model_name,
-        max_tokens=2048,
-        messages=augmented_messages
+        success=True,
+        duration_ms=round((time.perf_counter() - started) * 1000),
+        prompt_tokens=getattr(usage, "prompt_tokens", None),
+        completion_tokens=getattr(usage, "completion_tokens", None),
+        total_tokens=getattr(usage, "total_tokens", None),
+        used_db_results=bool(db_results),
+        used_web_results=bool(web_results),
     )
 
     return response.choices[0].message.content or "No response"

@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import './Explore.css'
 import { animeAPI } from '../services/api'
+import { track } from '../services/analytics'
 
 // Empty default - will be populated from API
 const defaultResults = []
@@ -123,7 +124,24 @@ export default function Explore() {
   const studioFiltered = filters.studio !== DEFAULT_FILTERS.studio
   const hasFilters = ratingFiltered || genreFiltered || yearFiltered || studioFiltered
 
+  // one event the first time each filter turns on, so a dragged slider does not
+  // produce a hundred of them. Answers "which filters do people actually use".
+  const previouslyActive = useRef({})
+  useEffect(() => {
+    const active = {
+      rating: ratingFiltered,
+      genre: genreFiltered,
+      year: yearFiltered,
+      studio: studioFiltered
+    }
+    Object.entries(active).forEach(([name, on]) => {
+      if (on && !previouslyActive.current[name]) track('filter_applied', { filter: name })
+    })
+    previouslyActive.current = active
+  }, [ratingFiltered, genreFiltered, yearFiltered, studioFiltered])
+
   const clearFilters = () => {
+    track('filters_cleared', { result_count: results.length })
     setFilters(DEFAULT_FILTERS)
     setOpenPopup(null)
   }
@@ -307,7 +325,12 @@ export default function Explore() {
             No results found. Try a different search.
           </div>
         ) : results.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(result => (
-          <Link key={result.id} to={`/title/${result.id}`} style={{ textDecoration: 'none' }}>
+          <Link
+            key={result.id}
+            to={`/title/${result.id}`}
+            style={{ textDecoration: 'none' }}
+            onClick={() => track('anime_opened', { source: 'explore', anime_id: result.id, had_filters: hasFilters })}
+          >
             <div className="result-item">
               <div className="result-item-poster" style={{ backgroundImage: `url(${result.cover_image})` }}></div>
               <div className="result-item-content">

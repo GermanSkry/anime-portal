@@ -121,6 +121,14 @@ they match.
 
 ## Frontend
 
+**The analytics SDKs tripled the bundle.** 282 kB to 654 kB raw, 88 kB to
+215 kB gzipped, from `posthog-js` and `@sentry/react`. Tracing config makes no
+difference — it is the SDKs themselves. Worth revisiting if first paint starts
+to matter: load `initAnalytics()` after the first render, or swap PostHog for
+its lite build. Error tracking is worth the weight; the pageview autocapture
+is the part that could be dropped.
+
+
 **Three `set-state-in-effect` warnings.** One in `Chat.jsx` (fetch on mount,
 benign) and two in `Explore.jsx`, where filtered results are derived into
 state. The Explore one is genuinely derivable during render, but rewriting it
