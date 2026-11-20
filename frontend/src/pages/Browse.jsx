@@ -36,6 +36,8 @@ export default function Browse() {
     const loadAnime = async () => {
       try {
         console.log('Fetching anime from backend...')
+        // Browse is a curated view — four cards per section — so it draws from
+        // the top 100 by rating rather than the whole catalogue.
         const data = await animeAPI.getAll(100)
         console.log('Received data:', data)
         if (data && data.length > 0) {

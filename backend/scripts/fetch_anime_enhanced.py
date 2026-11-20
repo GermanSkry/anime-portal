@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Fetch enhanced anime data from AniList API (characters, relations, themes)"""
+"""Fetch enhanced anime data from AniList API (characters, relations, tags)"""
 import asyncio
 import json
+import os
 from pathlib import Path
 
 import httpx
@@ -33,12 +34,10 @@ query ($page: Int, $perPage: Int) {
       }
       bannerImage
       genres
-      themes {
-        edges {
-          node {
-            name
-          }
-        }
+      tags {
+        name
+        rank
+        isMediaSpoiler
       }
       studios(isMain: true) {
         nodes {
@@ -87,18 +86,30 @@ async def fetch_anime_data(pages: int = 5) -> dict:
         for page in range(1, pages + 1):
             print(f"Fetching page {page}...")
 
-            response = await client.post(
-                "https://graphql.anilist.co",
-                json={
-                    "query": ANILIST_QUERY,
-                    "variables": {"page": page, "perPage": 50}
-                },
-                timeout=30.0
-            )
+            response = None
+            for attempt in range(5):
+                response = await client.post(
+                    "https://graphql.anilist.co",
+                    json={
+                        "query": ANILIST_QUERY,
+                        "variables": {"page": page, "perPage": 50}
+                    },
+                    timeout=30.0
+                )
+                if response.status_code != 429:
+                    break
+                # AniList runs a degraded 30 requests/minute and answers 429 with
+                # the seconds to wait. Skipping the page instead would silently
+                # drop 50 titles from the output.
+                wait = int(response.headers.get("retry-after", 60))
+                print(f"  rate limited, waiting {wait}s (attempt {attempt + 1}/5)")
+                await asyncio.sleep(wait + 1)
 
-            if response.status_code != 200:
-                print(f"Error: {response.status_code}")
-                continue
+            if response is None or response.status_code != 200:
+                raise RuntimeError(
+                    f"page {page} failed with {response.status_code if response else 'no response'}; "
+                    "stopping rather than writing a partial file"
+                )
 
             data = response.json()
             if "errors" in data:
@@ -112,12 +123,18 @@ async def fetch_anime_data(pages: int = 5) -> dict:
                     # Parse anime data
                     title = anime.get("title", {}).get("english") or anime.get("title", {}).get("romaji")
 
-                    # Extract themes
-                    themes = []
-                    for theme_edge in anime.get("themes", {}).get("edges", []):
-                        theme_name = theme_edge.get("node", {}).get("name")
-                        if theme_name:
-                            themes.append(theme_name)
+                    # AniList removed Media.themes; tags carry the same kind of
+                    # descriptor ("Time Manipulation", "Military") and are ranked.
+                    # Spoiler tags are dropped — they show up in search results.
+                    themes = [
+                        t["name"]
+                        for t in sorted(
+                            (anime.get("tags") or []),
+                            key=lambda t: t.get("rank") or 0,
+                            reverse=True,
+                        )
+                        if t.get("name") and not t.get("isMediaSpoiler")
+                    ][:8]
 
                     # Extract characters
                     characters = []
@@ -186,7 +203,8 @@ async def fetch_anime_data(pages: int = 5) -> dict:
                     continue
 
             print(f"  Fetched {len(media_list)} anime")
-            await asyncio.sleep(1)  # Rate limiting
+            # 30 requests/minute is AniList's degraded limit; stay under it
+            await asyncio.sleep(float(os.getenv("ANILIST_DELAY", "2.5")))
 
     return {
         "anime": anime_list,
@@ -196,12 +214,30 @@ async def fetch_anime_data(pages: int = 5) -> dict:
 
 async def main():
     print("🔄 Fetching enhanced anime data from AniList (with characters & relations)...\n")
-    data = await fetch_anime_data(pages=5)  # 250 anime
+    # 50 pages x 50 per page. AniList sorts by POPULARITY_DESC, so this is the
+    # popular end of the catalogue; going much deeper reaches unrated entries
+    # that make search worse rather than better.
+    pages = int(os.getenv("ANILIST_PAGES", "50"))
+    data = await fetch_anime_data(pages=pages)
 
     # Save to JSON files
     anime_file = DATA_DIR / "anime.json"
-    with open(anime_file, "w") as f:
+    fetched = len(data["anime"])
+    if fetched == 0:
+        raise RuntimeError("fetched nothing; leaving the existing file alone")
+    if anime_file.exists():
+        with open(anime_file) as f:
+            existing = len(json.load(f))
+        if fetched < existing * 0.9 and os.getenv("ANILIST_FORCE") != "1":
+            raise RuntimeError(
+                f"fetched {fetched} but {anime_file.name} already holds {existing}. "
+                "Refusing to shrink it — set ANILIST_FORCE=1 if that is intended."
+            )
+    # write via a temp file so a crash mid-write cannot truncate the real one
+    tmp = anime_file.with_suffix(".json.tmp")
+    with open(tmp, "w") as f:
         json.dump(data["anime"], f, indent=2)
+    tmp.replace(anime_file)
 
     print("\n✅ Data saved:")
     print(f"   Anime: {anime_file} ({len(data['anime'])} entries)")

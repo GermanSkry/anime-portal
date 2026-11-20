@@ -287,6 +287,18 @@ async def ingest_anime():
             print(f"✓ Inserted {len(anime_list)} anime with enhanced schema")
 
             # Verify
+            # Built after the inserts: an index over an empty table is useless to
+            # pgvector, and bulk loading into an existing index is slower. Without
+            # it every semantic search is a sequential scan of every embedding.
+            print("📐 Building the vector index...")
+            await cur.execute(
+                "CREATE INDEX IF NOT EXISTS idx_embeddings_cosine "
+                "ON embeddings USING hnsw (plot_embedding vector_cosine_ops);"
+            )
+            # the last commit is above this, so without one here the index is
+            # rolled back when the connection closes
+            await conn.commit()
+
             await cur.execute("SELECT COUNT(*) FROM anime;")
             anime_count = (await cur.fetchone())[0]
             await cur.execute("SELECT COUNT(*) FROM studios;")

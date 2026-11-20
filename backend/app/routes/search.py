@@ -36,7 +36,7 @@ async def search_anime(
     year_min: int = Query(None),
     year_max: int = Query(None),
     studios: str = Query(None),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(20, ge=1, le=2500),
     offset: int = Query(0, ge=0)
 ):
     """Full-text search + multi-filter for anime"""

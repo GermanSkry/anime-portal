@@ -21,7 +21,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 # one-shot ingest scripts: blocking IO and broad excepts are fine, nothing is serving traffic
-"scripts/*" = ["S", "BLE", "ASYNC"]
+"scripts/*" = ["S", "BLE", "ASYNC", "PLR0912"]
 # FastAPI handlers catch Exception on purpose to turn failures into a 500 instead of a stack trace
 "app/routes/*" = ["BLE001"]
 "app/utils/*" = ["BLE001"]
