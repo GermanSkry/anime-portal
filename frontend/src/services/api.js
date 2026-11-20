@@ -106,7 +106,9 @@ export const searchAPI = {
     }
   },
 
-  // full-text + filter search on the Python backend; /api/search/anime is the Go service's POST route, not this one
+  // full-text + filter search over the whole catalogue. Not /api/search/anime:
+  // that name is taken twice — a GET in chat.py that only scores the top 200 by
+  // rating, and the Go service's POST — and neither filters the full catalogue.
   animeByTitle: async (query, limit = 20) => {
     try {
       const res = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(query)}&limit=${limit}`, { headers: idHeaders() })
