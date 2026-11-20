@@ -52,6 +52,18 @@ curl -sf --max-time 10 http://127.0.0.1:8011/health > /dev/null || {
 if [ -z "${INGEST:-}" ] && [ -n "${SSH_ORIGINAL_COMMAND:-}" ]; then
   case "$SSH_ORIGINAL_COMMAND" in *INGEST=1*) INGEST=1 ;; esac
 fi
+if [ -z "${FETCH:-}" ] && [ -n "${SSH_ORIGINAL_COMMAND:-}" ]; then
+  case "$SSH_ORIGINAL_COMMAND" in *FETCH=1*) FETCH=1 ;; esac
+fi
+
+if [ "${FETCH:-}" = "1" ]; then
+  echo "refreshing the catalogue from AniList"
+  # Runs inside the container just restarted above, so it uses the image that
+  # was pulled, not whatever the host checkout happens to hold. The script
+  # refuses to replace a good file with a smaller one, so a failed fetch leaves
+  # the existing catalogue alone.
+  docker compose exec -T python-backend python scripts/fetch_anime_enhanced.py
+fi
 
 if [ "${INGEST:-}" = "1" ]; then
   # `-s` is not enough: a failed fetch can leave the literal "[]", which is

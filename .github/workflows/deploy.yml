@@ -13,6 +13,14 @@ on:
       tag:
         description: "Existing image tag to deploy (a commit SHA). Leave empty to build from main."
         required: false
+      fetch:
+        description: "Re-download the catalogue from AniList first (~4 min)"
+        type: boolean
+        default: false
+      ingest:
+        description: "Re-ingest the catalogue, whether or not the pipeline changed"
+        type: boolean
+        default: false
 
 concurrency:
   group: deploy
@@ -143,14 +151,28 @@ jobs:
             "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
             "IMAGE_TAG=$TAG /opt/anime-portal/deploy.sh"
 
+      - name: Refresh the catalogue from AniList
+        if: inputs.fetch
+        # ~4 minutes: 50 pages paced for AniList's 30 requests/minute. Keep the
+        # SSH connection alive, the runner's default idle timeout is shorter.
+        timeout-minutes: 20
+        run: |
+          ssh -i ~/.ssh/deploy -o BatchMode=yes -o ServerAliveInterval=30 \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            "FETCH=1 /opt/anime-portal/deploy.sh"
+
       - name: Ingest, if the data pipeline changed
         # Ingest is idempotent: it upserts on anilist_id and only recomputes an
         # embedding when that title's plot changed, so an unchanged catalogue is
         # a few seconds. Still gated on the files that can change what lands in
         # the database, so an unrelated commit does not touch it.
-        if: needs.build.outputs.ingest == 'true'
+        # a fetch implies an ingest: new data is pointless until it is loaded
+        if: needs.build.outputs.ingest == 'true' || inputs.ingest || inputs.fetch
+        # the first ingest of a fresh catalogue is 2,500 embeddings on one
+        # CPU-only vCPU, so give it room
+        timeout-minutes: 45
         run: |
-          ssh -i ~/.ssh/deploy -o BatchMode=yes \
+          ssh -i ~/.ssh/deploy -o BatchMode=yes -o ServerAliveInterval=30 \
             "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
             "INGEST=1 /opt/anime-portal/deploy.sh"
 
