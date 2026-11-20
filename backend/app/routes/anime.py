@@ -59,7 +59,7 @@ async def debug_db():
 
 @router.get("")
 async def get_anime(
-    limit: int = Query(10, ge=1, le=100),
+    limit: int = Query(10, ge=1, le=2500),  # the whole catalogue, for Explore's client-side filtering
     offset: int = Query(0, ge=0),
     sort_by: str = Query("rating", regex="^(rating|year|title)$")
 ):
@@ -110,69 +110,51 @@ async def get_similar_anime(anime_id: int, limit: int = Query(4, ge=1, le=20), m
 
         try:
             async with conn.cursor() as cur:
-                # Get the target anime
                 await cur.execute(
-                    ANIME_COLUMNS + " WHERE a.id = %s" + ANIME_GROUP_BY,
-                    (anime_id,)
+                    "SELECT year, rating, genres FROM anime WHERE id = %s;", (anime_id,)
                 )
                 target = await cur.fetchone()
-
                 if not target:
                     return []
+                target_year, target_rating, target_genres = target[0] or 0, target[1] or 0, target[2] or []
 
-                # Get all anime except the target
+                # Scored in SQL and limited there. Doing it in Python meant reading
+                # the whole anime table on every title page view, which is fine at
+                # 250 rows and not at a few thousand.
+                #
+                # The Python version also mis-scored: `abs(rating or 0 - target)`
+                # parses as `abs(rating)`, because `or` binds looser than `-`. That
+                # rewarded badly rated anime and made the year term always zero.
                 await cur.execute(
-                    ANIME_COLUMNS + " WHERE a.id != %s" + ANIME_GROUP_BY,
-                    (anime_id,)
+                    """
+                    WITH candidates AS (
+                    """ + ANIME_COLUMNS + " WHERE a.id != %s " + ANIME_GROUP_BY + """
+                    )
+                    SELECT id, title, title_english, year, rating, genres, cover_image,
+                           studios, plot, trailer_url
+                    FROM candidates
+                    ORDER BY
+                        -- min_rating prefers rather than filters, so a title with few
+                        -- good neighbours still fills its row
+                        (COALESCE(rating, 0) >= %s) DESC,
+                        (
+                            CASE WHEN cardinality(%s::text[]) > 0
+                                 THEN (SELECT count(*) FROM unnest(genres) g
+                                       WHERE g = ANY(%s::text[]))::float
+                                      / cardinality(%s::text[]) * 50
+                                 ELSE 0 END
+                            + GREATEST(0, 30 - ABS(COALESCE(rating, 0) - %s) * 3)
+                            + GREATEST(0, 15 - ABS(COALESCE(year, 0) - %s) * 0.5)
+                            -- array_agg over studios.name yields varchar[], not text[]
+                            + CASE WHEN studios::text[] && %s::text[] THEN 5 ELSE 0 END
+                        ) DESC,
+                        rating DESC NULLS LAST
+                    LIMIT %s
+                    """,  # noqa: S608 - the concatenated parts are module constants, never request data
+                    (anime_id, min_rating, target_genres, target_genres, target_genres,
+                     target_rating, target_year, await _studios_of(cur, anime_id), limit),
                 )
-                all_anime = await cur.fetchall()
 
-                # Score each anime based on similarity
-                scored = []
-                target_genres = set(target[5]) if target[5] else set()
-                target_rating = target[4] or 0
-                target_year = target[3] or 0
-                target_studios = set(target[7]) if target[7] else set()
-
-                for anime in all_anime:
-                    score = 0
-
-                    # Genre match (max 50 points)
-                    anime_genres = set(anime[5]) if anime[5] else set()
-                    genre_overlap = len(target_genres & anime_genres)
-                    if target_genres:
-                        score += (genre_overlap / len(target_genres)) * 50
-
-                    # Rating proximity (max 30 points)
-                    rating_diff = abs(anime[4] or 0 - target_rating)
-                    score += max(0, 30 - (rating_diff * 3))
-
-                    # Year proximity (max 15 points)
-                    year_diff = abs(anime[3] or 0 - target_year)
-                    score += max(0, 15 - (year_diff * 0.5))
-
-                    # Studio match (max 5 points)
-                    anime_studios = set(anime[7]) if anime[7] else set()
-                    if target_studios & anime_studios:
-                        score += 5
-
-                    scored.append((score, anime))
-
-                # Sort by score (descending) and fetch more to allow filtering
-                scored.sort(key=lambda x: x[0], reverse=True)
-
-                # Get top candidates (fetch more to allow filtering)
-                candidates = [anime for _, anime in scored[:limit * 3]]
-
-                # Filter by min_rating if specified, but keep at least 'limit' results
-                high_rated = [a for a in candidates if (a[4] or 0) >= min_rating]
-                similar = high_rated if len(high_rated) >= limit else candidates
-
-                # Sort by rating (descending) and take top results
-                similar.sort(key=lambda x: x[4] or 0, reverse=True)
-                similar = similar[:limit]
-
-                # Format response
                 return [
                     {
                         "id": a[0],
@@ -186,7 +168,7 @@ async def get_similar_anime(anime_id: int, limit: int = Query(4, ge=1, le=20), m
                         "studios": list(a[7]) if a[7] else [],
                         "synopsis": a[8] or ""
                     }
-                    for a in similar
+                    for a in await cur.fetchall()
                 ]
         finally:
             await conn.close()
@@ -195,6 +177,21 @@ async def get_similar_anime(anime_id: int, limit: int = Query(4, ge=1, le=20), m
     except Exception as e:
         logger.error(f"Error finding similar anime: {e}", exc_info=True)
         raise HTTPException(status_code=503, detail="Anime database unavailable") from e
+
+
+async def _studios_of(cur, anime_id: int) -> list[str]:
+    """The studio names for one anime, for the similarity studio bonus."""
+    await cur.execute(
+        """
+        SELECT COALESCE(array_agg(s.name) FILTER (WHERE s.name IS NOT NULL), '{}')
+        FROM anime_studios ast JOIN studios s ON ast.studio_id = s.id
+        WHERE ast.anime_id = %s;
+        """,
+        (anime_id,),
+    )
+    row = await cur.fetchone()
+    return list(row[0]) if row and row[0] else []
+
 
 @router.get("/{anime_id}/related")
 async def get_related_anime(anime_id: int, limit: int = Query(4, ge=1, le=20)):

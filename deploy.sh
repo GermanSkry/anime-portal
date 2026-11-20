@@ -46,6 +46,40 @@ curl -sf --max-time 10 http://127.0.0.1:8011/health > /dev/null || {
   exit 1
 }
 
+# The deploy workflow sets INGEST=1 when the data pipeline changed. Arrives via
+# SSH_ORIGINAL_COMMAND for the same reason IMAGE_TAG does: the deploy key is
+# pinned to this script, which drops the client environment.
+if [ -z "${INGEST:-}" ] && [ -n "${SSH_ORIGINAL_COMMAND:-}" ]; then
+  case "$SSH_ORIGINAL_COMMAND" in *INGEST=1*) INGEST=1 ;; esac
+fi
+if [ -z "${FETCH:-}" ] && [ -n "${SSH_ORIGINAL_COMMAND:-}" ]; then
+  case "$SSH_ORIGINAL_COMMAND" in *FETCH=1*) FETCH=1 ;; esac
+fi
+
+if [ "${FETCH:-}" = "1" ]; then
+  echo "refreshing the catalogue from AniList"
+  # Runs inside the container just restarted above, so it uses the image that
+  # was pulled, not whatever the host checkout happens to hold. The script
+  # refuses to replace a good file with a smaller one, so a failed fetch leaves
+  # the existing catalogue alone.
+  docker compose exec -T python-backend python scripts/fetch_anime_enhanced.py
+fi
+
+if [ "${INGEST:-}" = "1" ]; then
+  # `-s` is not enough: a failed fetch can leave the literal "[]", which is
+  # 2 bytes. That is how this file was lost once already.
+  if [ ! -f backend/data/anime.json ] || [ "$(wc -c < backend/data/anime.json)" -lt 1000 ]; then
+    echo "INGEST requested but backend/data/anime.json is missing or empty." >&2
+    echo "It is gitignored; fetch it first:" >&2
+    echo "  docker compose exec python-backend python scripts/fetch_anime_enhanced.py" >&2
+    exit 1
+  fi
+  echo "data pipeline changed, re-ingesting"
+  # upserts on anilist_id and only re-embeds changed plots, so this is seconds
+  # when the catalogue has not moved
+  docker compose exec -T python-backend python scripts/ingest_anime.py
+fi
+
 # keep the disk from filling with superseded images
 docker image prune -f --filter "until=168h" > /dev/null
 

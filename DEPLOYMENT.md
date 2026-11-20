@@ -78,9 +78,29 @@ docker compose build python-backend  # or go-search; `build:` is still defined
 docker compose up -d python-backend go-search
 ```
 
-**Data**
+**Data** — ingest runs automatically on merge, but only when a commit touches
+`ingest_anime.py`, `fetch_anime_enhanced.py`, `embeddings.py` or
+`query_terms.py`. It is safe to run often: it upserts on `anilist_id` and only
+recomputes an embedding when that title's plot changed, so an unchanged
+catalogue takes seconds rather than minutes, and anime ids stay stable across
+runs.
+
+To refresh the catalogue, or to re-ingest after a change CI did not detect, run
+**Deploy** by hand (Actions → Deploy → Run workflow) with:
+
+| input | |
+|---|---|
+| `fetch` | re-download from AniList, ~4 min, then ingest |
+| `ingest` | ingest the catalogue already on disk |
+
+A fetch implies an ingest — new data is pointless until it is loaded. The
+fetcher refuses to replace a good file with a smaller one, so a failed fetch
+leaves the existing catalogue alone.
+
+The same thing over SSH, if CI is unavailable:
 
 ```bash
+docker compose exec python-backend python scripts/fetch_anime_enhanced.py   # ~4 min, AniList is rate limited
 docker compose exec python-backend python scripts/ingest_anime.py
 ```
 

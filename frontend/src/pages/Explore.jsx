@@ -7,12 +7,19 @@ import { track } from '../services/analytics'
 // Empty default - will be populated from API
 const defaultResults = []
 
+// matches the `le=` cap on /api/anime
+const CATALOGUE_SIZE = 2500
+
+// Announced titles carry a future year, so the ceiling has to move with the
+// calendar. Hardcoded at 2026 it was already hiding 14 titles dated 2027.
+const MAX_YEAR = new Date().getFullYear() + 2
+
 const DEFAULT_FILTERS = {
   ratingMin: 0,
   ratingMax: 10,
   genres: [],
   yearMin: 1970,
-  yearMax: 2026,
+  yearMax: MAX_YEAR,
   studio: 'Any Studio'
 }
 
@@ -50,7 +57,9 @@ export default function Explore() {
     const loadRandomAnime = async () => {
       setLoading(true)
       try {
-        const data = await animeAPI.getAll(100)
+        // the whole catalogue: Explore filters client-side, so anything it does
+        // not load is unreachable. ~500 KB gzipped at 2500 titles.
+        const data = await animeAPI.getAll(CATALOGUE_SIZE)
         if (Array.isArray(data)) {
           setAllResults(data)
           setResults(data)
@@ -243,7 +252,7 @@ export default function Explore() {
                 type="number"
                 className="range-input"
                 min="1970"
-                max="2026"
+                max={MAX_YEAR}
                 value={filters.yearMin}
                 onChange={(e) => setFilters({...filters, yearMin: parseInt(e.target.value)})}
                 placeholder="From"
@@ -253,7 +262,7 @@ export default function Explore() {
                 type="number"
                 className="range-input"
                 min="1970"
-                max="2026"
+                max={MAX_YEAR}
                 value={filters.yearMax}
                 onChange={(e) => setFilters({...filters, yearMax: parseInt(e.target.value)})}
                 placeholder="To"

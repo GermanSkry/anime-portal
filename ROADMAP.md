@@ -70,6 +70,38 @@ clone work with no extra step.
 is gitignored so it is not there after a clone. A one-shot `ingest` service, or
 a `make` target that fetches and ingests, would close the gap.
 
+## Catalogue
+
+**Explore loads the whole catalogue to filter it client-side.** ~2 MB, ~680 KB
+over the wire once nginx has gzipped it. `/api/search` already implements every
+filter Explore has — genres, year, studio, and now rating — so moving Explore
+onto it would remove the duplicated filtering logic and the big download in one
+go. It would also need a total count for pagination, which the endpoint does
+not return yet.
+
+**499 pages of 5.** `itemsPerPage` is 5, which was fine at 100 results and is
+not at 2,491. Either raise it or lean harder on the filters.
+
+**Stale titles are never removed.** Ingest upserts and does not prune, so a
+title that drops out of AniList's popular 2,500 stays in the database. Safer
+than deleting rows other tables may point at, but the catalogue only grows.
+
+**Browse still draws from the top 100 by rating.** Deliberate — it shows four
+cards per section — but it means the genre rows are "best of", not a sample of
+the catalogue.
+
+## Duplicate routes
+
+**`/api/anime/{id}/related` is registered twice.** `characters.py` is included
+before `anime.py` in `main.py`, so the characters version wins and the one in
+`anime.py` — a deprecated alias for `/similar` — is unreachable.
+
+**Three implementations of "search anime".** `GET /api/search` (full-text and
+filters over the whole catalogue, what the frontend uses), `GET
+/api/search/anime` in `chat.py` (scores the top 200 by rating; nothing calls
+it), and the Go service's `POST /api/search/anime` (proxies to semantic
+search). The middle one looks like dead code.
+
 ## Backend
 
 **Connection pooling.** 22 hand-rolled connect/use/close blocks across the

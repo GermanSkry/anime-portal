@@ -27,6 +27,11 @@ async def ingest_anime():
     with open(ANIME_FILE) as f:
         anime_list = json.load(f)
 
+    if not anime_list:
+        print(f"❌ {ANIME_FILE} is empty — nothing to ingest.")
+        print("   Regenerate it: python scripts/fetch_anime_enhanced.py")
+        return
+
     print(f"   Loaded {len(anime_list)} anime")
 
     # Connect to database
@@ -118,9 +123,22 @@ async def ingest_anime():
             """)
 
             # Embeddings for semantic search; 384 dims = all-MiniLM-L6-v2, the model app/utils/embeddings.py loads.
-            # Dropped first: older databases have this column as TEXT, and CREATE IF NOT EXISTS would keep it,
-            # which silently breaks the `<=>` query in /api/search/semantic. The script rebuilds every row anyway.
-            await cur.execute("DROP TABLE IF EXISTS embeddings;")
+            # Older databases have plot_embedding as TEXT, which CREATE IF NOT EXISTS would keep and which
+            # silently breaks the `<=>` query in /api/search/semantic. Drop it only in that case — dropping
+            # unconditionally would throw away every embedding on every run, which is the slow part.
+            await cur.execute("""
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'embeddings'
+                          AND column_name = 'plot_embedding'
+                          AND udt_name <> 'vector'
+                    ) THEN
+                        DROP TABLE embeddings;
+                    END IF;
+                END $$;
+            """)
             await cur.execute("""
                 CREATE TABLE IF NOT EXISTS embeddings (
                     id SERIAL PRIMARY KEY,
@@ -200,19 +218,23 @@ async def ingest_anime():
             await cur.execute("CREATE INDEX IF NOT EXISTS idx_chat_history_user ON chat_history(user_ip, created_at DESC);")
             await cur.execute("CREATE INDEX IF NOT EXISTS idx_search_history_created ON search_history(created_at DESC);")
 
-            # Clear existing data (for re-ingestion)
-            print("🗑️  Clearing old data...")
-            await cur.execute("DELETE FROM recommendations;")
-            await cur.execute("DELETE FROM anime_characters;")
-            await cur.execute("DELETE FROM characters;")
-            await cur.execute("DELETE FROM related_anime;")
-            await cur.execute("DELETE FROM anime_studios;")
-            await cur.execute("DELETE FROM anime;")
-            await cur.execute("DELETE FROM studios;")
-            await conn.commit()
+            # What is already here, so unchanged titles can be left alone. This used
+            # to DELETE every table and rebuild, which renumbered every anime id on
+            # each run — breaking bookmarked /title/<id> links and leaving
+            # chat_history.anime_context_id pointing at the wrong title — and spent
+            # minutes recomputing embeddings that had not changed.
+            await cur.execute("""
+                SELECT a.anilist_id, a.id, a.plot, (e.anime_id IS NOT NULL)
+                FROM anime a LEFT JOIN embeddings e ON e.anime_id = a.id;
+            """)
+            existing = {r[0]: (r[1], r[2], r[3]) for r in await cur.fetchall()}
+            print(f"📦 {len(existing)} titles already in the database")
 
-            # Insert anime
-            print("📝 Inserting anime...")
+            # Titles no longer in the file are left alone rather than deleted: a
+            # fetch that legitimately returns a different popular 2500 should not
+            # silently drop rows other tables may refer to.
+            print("📝 Upserting anime...")
+            embedded = skipped = 0
             for i, anime in enumerate(anime_list):
                 try:
                     await cur.execute("""
@@ -222,6 +244,22 @@ async def ingest_anime():
                             cover_image, banner_image, trailer_url, genres, themes
                         )
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (anilist_id) DO UPDATE SET
+                            title = EXCLUDED.title,
+                            title_english = EXCLUDED.title_english,
+                            title_japanese = EXCLUDED.title_japanese,
+                            year = EXCLUDED.year,
+                            season = EXCLUDED.season,
+                            episodes = EXCLUDED.episodes,
+                            status = EXCLUDED.status,
+                            rating = EXCLUDED.rating,
+                            plot = EXCLUDED.plot,
+                            cover_image = EXCLUDED.cover_image,
+                            banner_image = EXCLUDED.banner_image,
+                            trailer_url = EXCLUDED.trailer_url,
+                            genres = EXCLUDED.genres,
+                            themes = EXCLUDED.themes,
+                            updated_at = CURRENT_TIMESTAMP
                         RETURNING id;
                     """, (
                         anime["id"],
@@ -265,14 +303,26 @@ async def ingest_anime():
                             ON CONFLICT DO NOTHING;
                         """, (anime_db_id, studio_id))
 
-                    # Generate and store embedding
+                    # Embedding the plot is the slow step — 2500 of them is seconds
+                    # on a GPU and many minutes on the VPS's CPU-only vCPU. Only
+                    # redo it when the plot actually changed, or when none exists.
                     plot_text = anime.get("plot", "") or anime.get("title", "")
+                    was = existing.get(anime["id"])
+                    if was and was[2] and was[1] == anime.get("plot"):
+                        skipped += 1
+                        if (i + 1) % 500 == 0:
+                            print(f"  Processed {i + 1}/{len(anime_list)}")
+                        continue
+
                     embedding = await generate_embedding(plot_text)
+                    embedded += 1
                     embedding_str = "[" + ",".join(str(x) for x in embedding) + "]"
 
                     await cur.execute("""
                         INSERT INTO embeddings (anime_id, plot_embedding)
-                        VALUES (%s, %s);
+                        VALUES (%s, %s)
+                        ON CONFLICT (anime_id) DO UPDATE
+                            SET plot_embedding = EXCLUDED.plot_embedding;
                     """, (anime_db_id, embedding_str))
 
                     if (i + 1) % 50 == 0:
@@ -284,9 +334,21 @@ async def ingest_anime():
                     continue
 
             await conn.commit()
-            print(f"✓ Inserted {len(anime_list)} anime with enhanced schema")
+            print(f"✓ {len(anime_list)} anime upserted — {embedded} embeddings computed, {skipped} unchanged")
 
             # Verify
+            # Built after the inserts: an index over an empty table is useless to
+            # pgvector, and bulk loading into an existing index is slower. Without
+            # it every semantic search is a sequential scan of every embedding.
+            print("📐 Building the vector index...")
+            await cur.execute(
+                "CREATE INDEX IF NOT EXISTS idx_embeddings_cosine "
+                "ON embeddings USING hnsw (plot_embedding vector_cosine_ops);"
+            )
+            # the last commit is above this, so without one here the index is
+            # rolled back when the connection closes
+            await conn.commit()
+
             await cur.execute("SELECT COUNT(*) FROM anime;")
             anime_count = (await cur.fetchone())[0]
             await cur.execute("SELECT COUNT(*) FROM studios;")
