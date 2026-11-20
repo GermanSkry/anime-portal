@@ -24,11 +24,14 @@ export function initAnalytics() {
     posthog.init(POSTHOG_KEY, {
       api_host: POSTHOG_HOST,
       capture_pageview: true,
+      disable_surveys: true, // not used, and it pulls another script on every load
       persistence: 'localStorage+cookie',
       // PostHog drops events from bot-looking user agents, and a headless browser
       // is one. Off by default; the e2e check sets it so the events can be verified.
       opt_out_useragent_filter: import.meta.env.VITE_POSTHOG_ALLOW_BOTS === 'true',
     })
+    // stamp every browser event, so a local run can be filtered out of the real numbers
+    posthog.register({ environment: ENVIRONMENT })
     posthogReady = true
   }
 }
