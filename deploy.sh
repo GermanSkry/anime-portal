@@ -54,8 +54,10 @@ if [ -z "${INGEST:-}" ] && [ -n "${SSH_ORIGINAL_COMMAND:-}" ]; then
 fi
 
 if [ "${INGEST:-}" = "1" ]; then
-  if [ ! -f backend/data/anime.json ]; then
-    echo "INGEST requested but backend/data/anime.json is missing." >&2
+  # `-s` is not enough: a failed fetch can leave the literal "[]", which is
+  # 2 bytes. That is how this file was lost once already.
+  if [ ! -f backend/data/anime.json ] || [ "$(wc -c < backend/data/anime.json)" -lt 1000 ]; then
+    echo "INGEST requested but backend/data/anime.json is missing or empty." >&2
     echo "It is gitignored; fetch it first:" >&2
     echo "  docker compose exec python-backend python scripts/fetch_anime_enhanced.py" >&2
     exit 1

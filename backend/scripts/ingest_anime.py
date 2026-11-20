@@ -27,6 +27,11 @@ async def ingest_anime():
     with open(ANIME_FILE) as f:
         anime_list = json.load(f)
 
+    if not anime_list:
+        print(f"❌ {ANIME_FILE} is empty — nothing to ingest.")
+        print("   Regenerate it: python scripts/fetch_anime_enhanced.py")
+        return
+
     print(f"   Loaded {len(anime_list)} anime")
 
     # Connect to database
