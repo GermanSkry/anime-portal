@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import './Browse.css'
 import { animeAPI, searchAPI } from '../services/api'
+import { track } from '../services/analytics'
 
 const defaultAnimeData = {
   best: [],
@@ -197,7 +198,12 @@ export default function Browse() {
             </h2>
             <div className="browse-grid">
               {animes.map(anime => (
-                <Link key={anime.id} to={`/title/${anime.id}`} style={{ textDecoration: 'none' }}>
+                <Link
+                  key={anime.id}
+                  to={`/title/${anime.id}`}
+                  style={{ textDecoration: 'none' }}
+                  onClick={() => track('anime_opened', { source: 'browse', anime_id: anime.id, section })}
+                >
                   <div className="browse-card">
                     <div className="browse-poster" style={{ backgroundImage: `url(${anime.cover_image})` }}></div>
                     <div className="browse-badge">{anime.rating}</div>

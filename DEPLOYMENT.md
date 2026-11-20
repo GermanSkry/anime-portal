@@ -54,18 +54,29 @@ docker ps --format '{{.Names}}' | grep '^anime_' | while read c; do docker port 
 project root directory is `frontend/`, which is why `vercel.json` lives there
 and carries only the SPA rewrite.
 
-**Backend / Go service**
+**Backend / Go service** — merge to `main`. `.github/workflows/deploy.yml`
+waits for Code Quality to pass, builds both images on a GitHub runner, pushes
+them to `ghcr.io`, then SSHes to the VPS and runs `deploy.sh`, which pulls and
+restarts. The box only pulls: building the backend image here takes 15-40
+minutes on one vCPU and starves everything else on the host.
+
+Images are tagged with the commit SHA as well as `latest`, so a rollback is a
+`workflow_dispatch` run of **Deploy** with an older SHA in the `tag` input —
+that path skips the build entirely and only pulls.
+
+Recreating `anime_api` costs about a minute while the embedding model loads.
+The site stays up and returns empty results during that window; `deploy.sh`
+waits for `/health` and fails with container logs if it never answers.
+
+*Manual fallback*, for when CI is unavailable:
 
 ```bash
 ssh root@76.13.250.179
 cd /opt/anime-portal
 git pull --ff-only origin main      # never `git stash -u` here: see Pitfalls
-docker compose build python-backend  # or go-search
-docker compose up -d
+docker compose build python-backend  # or go-search; `build:` is still defined
+docker compose up -d python-backend go-search
 ```
-
-Recreating `anime_api` costs about a minute while the embedding model loads.
-The site stays up and returns empty results during that window.
 
 **Data**
 
@@ -102,6 +113,44 @@ Config lives at `/etc/nginx/sites-available/anime-portal`. Secrets are in
 ## First-time setup
 
 Already done; recorded so it can be repeated.
+
+**CI deploys — not yet done.** Three steps, all needing access this repository
+does not have:
+
+1. *Deploy key.* Generate a pair used for nothing else, and restrict it on the
+   server to the one command it needs:
+
+   ```bash
+   ssh-keygen -t ed25519 -f ~/.ssh/animevibing_deploy -N '' -C 'github actions deploy'
+   ssh-copy-id -i ~/.ssh/animevibing_deploy.pub root@76.13.250.179
+   ```
+
+   Then on the VPS, prefix that key's line in `~/.ssh/authorized_keys` with:
+
+   ```
+   command="/opt/anime-portal/deploy.sh",no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-pty
+   ```
+
+   The key can then only run the deploy, not open a shell. `deploy.sh` reads
+   the requested tag out of `SSH_ORIGINAL_COMMAND`, because a forced command
+   drops the client's environment.
+
+2. *Repository secrets* (Settings → Secrets and variables → Actions):
+
+   | name | value |
+   |---|---|
+   | `VPS_SSH_KEY` | contents of `~/.ssh/animevibing_deploy` (the private half) |
+   | `VPS_HOST` | `76.13.250.179` |
+   | `VPS_USER` | `root` |
+
+3. *Package visibility.* The first run creates `anime-portal-backend` and
+   `anime-portal-go-search` under the account's Packages. They are private by
+   default, so either set both to Public — the repository is already public —
+   or run `docker login ghcr.io` on the VPS with a read:packages token.
+
+Then run **Deploy** once by hand (Actions → Deploy → Run workflow) before
+trusting it on every merge, and copy `deploy.sh` up once so the first run has
+it: `scp deploy.sh root@76.13.250.179:/opt/anime-portal/ && ssh root@76.13.250.179 chmod +x /opt/anime-portal/deploy.sh`.
 
 **TLS** — issued with acme.sh, valid to 16 Feb 2027, renewed by the daily cron
 at 05:17:

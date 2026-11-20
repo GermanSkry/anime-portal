@@ -5,7 +5,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app.utils.claude_agent import extract_terms
+from app.utils.query_terms import extract_terms
 
 
 class TestExtractTerms(unittest.TestCase):

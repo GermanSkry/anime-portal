@@ -18,21 +18,18 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
           cache: pip
 
       - name: Install tools
-        # A subset of requirements.txt, same pins: only what the tests import.
-        # Installing all of it would pull ~2 GB of torch via sentence-transformers
-        # on every run. A test that needs more fails loudly with ImportError.
-        run: |
-          pip install ruff==0.17.5
-          pip install 'psycopg[binary]==3.2.13' 'openai==1.51.0' 'pydantic==2.9.0' \
-                      'pydantic-settings==2.4.0' 'httpx==0.27.0'
+        # Only ruff. The tests are stdlib-only by design, so there is no
+        # dependency subset here to drift out of step with requirements.txt —
+        # installing all of it would pull ~2 GB of torch on every run.
+        run: pip install ruff==0.17.5
 
       - name: Lint
         # `ruff format --check` is not here yet: the codebase has never been
@@ -50,9 +47,9 @@ jobs:
       run:
         working-directory: go-search
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version: "1.24"
           cache-dependency-path: go-search/go.sum
@@ -86,9 +83,9 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm

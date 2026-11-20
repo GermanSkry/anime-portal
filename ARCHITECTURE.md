@@ -228,7 +228,7 @@ CREATE TABLE anime (
 
 ## 📋 Summary
 
-The Anime Portal combines:
+AnimeVibing combines:
 
 - **Smart Chat** - Context-aware, summarizes long conversations, finds anime in database
 - **Scalable Search** - Backend-powered fuzzy matching, ready for large DB growth

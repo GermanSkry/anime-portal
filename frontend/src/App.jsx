@@ -28,7 +28,7 @@ function AppLayout() {
             backgroundClip: 'text',
             cursor: 'pointer'
           }}>
-            Anime Portal
+            AnimeVibing
           </h1>
         </Link>
 

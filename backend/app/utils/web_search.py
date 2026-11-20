@@ -1,7 +1,10 @@
 """Web search using SerpAPI (Google Search) with smart query optimization"""
+import time
+
 import httpx
 
 from app.config import settings
+from app.utils.analytics import current_visitor, track
 
 # Mock fallback data (in case SerpAPI is unavailable or quota exhausted)
 MOCK_TRENDING = {
@@ -17,6 +20,14 @@ MOCK_TRENDING = {
     ]
 }
 
+def _mock_for(query: str, limit: int) -> list[dict]:
+    """Canned results used whenever SerpAPI cannot answer."""
+    query_lower = query.lower()
+    if any(word in query_lower for word in ["recent", "latest", "new"]):
+        return MOCK_TRENDING.get("recent", [])[:limit]
+    return MOCK_TRENDING.get("trending", [])[:limit]
+
+
 async def search_web(query: str, limit: int = 3) -> list[dict]:
     """Search the web for anime news/reviews/trending info using SerpAPI (Google Search)
 
@@ -24,64 +35,67 @@ async def search_web(query: str, limit: int = 3) -> list[dict]:
     - Use targeted queries to reduce API calls
     - Limit to 3 results to save quota (250/month = 83/week)
     - Fall back to mock data if SerpAPI unavailable
+
+    Every exit is tracked. The mock fallback returns invented headlines, so a
+    rising share of source="mock_*" means users are being shown made-up news —
+    which is otherwise completely silent.
     """
     if not query or len(query.strip()) < 2:
         return []
 
-    # If no API key, use mock data
+    started = time.perf_counter()
+    source = "serpapi"
+    error = None
+    results: list[dict] = []
+
     if not settings.serpapi_key:
-        query_lower = query.lower()
-        if any(word in query_lower for word in ["trending", "popular", "top"]):
-            return MOCK_TRENDING.get("trending", [])[:limit]
-        elif any(word in query_lower for word in ["recent", "latest", "new"]):
-            return MOCK_TRENDING.get("recent", [])[:limit]
-        return MOCK_TRENDING.get("trending", [])[:limit]
+        source = "mock_no_key"
+        results = _mock_for(query, limit)
+    else:
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                # Optimize query: add "anime" if not present, but keep it short
+                search_query = query.strip()
+                if "anime" not in search_query.lower():
+                    search_query = f"{search_query} anime"
 
-    try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            # Optimize query: add "anime" if not present, but keep it short
-            search_query = query.strip()
-            if "anime" not in search_query.lower():
-                search_query = f"{search_query} anime"
+                # Use SerpAPI Google Search (most reliable)
+                response = await client.get(
+                    "https://api.serpapi.com/search",
+                    params={
+                        "q": search_query,
+                        "api_key": settings.serpapi_key,
+                        "engine": "google",
+                        "num": limit,  # Only fetch what we need
+                        "gl": "us",
+                    },
+                    timeout=5.0,
+                )
+                response.raise_for_status()
+                data = response.json()
 
-            # Use SerpAPI Google Search (most reliable)
-            url = "https://api.serpapi.com/search"
-            params = {
-                "q": search_query,
-                "api_key": settings.serpapi_key,
-                "engine": "google",
-                "num": limit,  # Only fetch what we need
-                "gl": "us"
-            }
+            for result in (data.get("organic_results") or [])[:limit]:
+                results.append({
+                    "title": result.get("title", ""),
+                    "url": result.get("link", ""),
+                    "snippet": result.get("snippet", "")[:200],
+                })
 
-            response = await client.get(url, params=params, timeout=5.0)
-            response.raise_for_status()
-            data = response.json()
+            if not results:
+                source = "mock_empty"
+                results = _mock_for(query, limit)
+        except Exception as e:
+            # Network error, quota exceeded, invalid API key, etc.
+            source, error = "mock_error", type(e).__name__
+            results = _mock_for(query, limit)
 
-            results = []
-
-            # Extract organic search results
-            if data.get("organic_results"):
-                for result in data["organic_results"][:limit]:
-                    results.append({
-                        "title": result.get("title", ""),
-                        "url": result.get("link", ""),
-                        "snippet": result.get("snippet", "")[:200]
-                    })
-
-            # If we got good results, return them
-            if results:
-                return results[:limit]
-
-            # Fall back to mock if no results from API
-            return MOCK_TRENDING.get("trending", [])[:limit]
-
-    except Exception:
-        # Network error, quota exceeded, invalid API key, etc.
-        # Silently fall back to mock data
-        query_lower = query.lower()
-        if any(word in query_lower for word in ["trending", "popular", "top"]):
-            return MOCK_TRENDING.get("trending", [])[:limit]
-        elif any(word in query_lower for word in ["recent", "latest", "new"]):
-            return MOCK_TRENDING.get("recent", [])[:limit]
-        return MOCK_TRENDING.get("trending", [])[:limit]
+    track(
+        current_visitor(),
+        "web_search",
+        source=source,
+        is_real=source == "serpapi",
+        result_count=len(results),
+        duration_ms=round((time.perf_counter() - started) * 1000),
+        error=error,
+    )
+    return results[:limit]

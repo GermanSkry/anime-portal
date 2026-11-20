@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import './Title.css'
 import { animeAPI } from '../services/api'
+import { track } from '../services/analytics'
 import ChatModal from '../components/ChatModal'
 
 // Helper to navigate to Explore with filters
@@ -129,7 +130,12 @@ export default function Title() {
         <div className="similar-title">📽️ Similar Titles</div>
         <div className="similar-grid">
           {similar.map(anime => (
-            <Link key={anime.id} to={`/title/${anime.id}`} style={{ textDecoration: 'none' }}>
+            <Link
+              key={anime.id}
+              to={`/title/${anime.id}`}
+              style={{ textDecoration: 'none' }}
+              onClick={() => track('anime_opened', { source: 'similar', anime_id: anime.id, from_anime_id: id })}
+            >
               <div className="similar-card">
                 <div className="similar-poster" style={{ backgroundImage: `url(${anime.cover_image})` }}></div>
                 <div className="similar-info">

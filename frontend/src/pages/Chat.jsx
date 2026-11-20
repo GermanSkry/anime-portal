@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import './Chat.css'
 import { chatAPI } from '../services/api'
+import { track } from '../services/analytics'
 import MessageRenderer from '../components/MessageRenderer'
 
+const GREETING = { role: 'assistant', text: '👋 What anime are you looking for?' }
+
 export default function Chat() {
-  const [messages, setMessages] = useState([
-    { role: 'assistant', text: '👋 What anime are you looking for?' }
-  ])
+  const [messages, setMessages] = useState([GREETING])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [history, setHistory] = useState([])
@@ -30,10 +31,19 @@ export default function Chat() {
   const loadHistoryChat = (item) => {
     // Load a previous conversation from history
     setMessages([
-      { role: 'assistant', text: '👋 What anime are you looking for?' },
+      GREETING,
       { role: 'user', text: item.user_message },
       { role: 'assistant', text: item.assistant_response, animeReferences: item.anime_references || [] }
     ])
+  }
+
+  const startNewChat = () => {
+    track('new_chat_started', { messages_discarded: messages.length - 1 })
+    setMessages([GREETING])
+    setInput('')
+    // the conversation just finished is already saved server-side; refetch so it
+    // shows up under Recent straight away
+    loadChatHistory()
   }
 
   const buildHistoryForAPI = () => {
@@ -98,7 +108,17 @@ export default function Chat() {
   return (
     <div className="chat-container">
       <div className="sidebar">
-        <div className="sidebar-title">Recent</div>
+        <div className="sidebar-header">
+          <div className="sidebar-title">Recent</div>
+          <button
+            className="new-chat-btn"
+            onClick={startNewChat}
+            title="New chat"
+            aria-label="New chat"
+          >
+            +
+          </button>
+        </div>
         {history.length > 0 ? (
           history.map((item, i) => (
             <div

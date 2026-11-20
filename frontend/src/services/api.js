@@ -1,11 +1,20 @@
+import { clientId } from './analytics'
+
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 const GO_SEARCH_API = import.meta.env.VITE_GO_SEARCH_URL || 'http://localhost:8080'
+
+// identifies the visitor to the backends, so their PostHog events and the
+// browser's land on the same person
+const idHeaders = (extra = {}) => {
+  const id = clientId()
+  return id ? { ...extra, 'X-Client-Id': id } : extra
+}
 
 // Anime API endpoints
 export const animeAPI = {
   getAll: async (limit = 20) => {
     try {
-      const res = await fetch(`${API_BASE}/api/anime?limit=${limit}`)
+      const res = await fetch(`${API_BASE}/api/anime?limit=${limit}`, { headers: idHeaders() })
       const data = await res.json()
       return Array.isArray(data) ? data : []
     } catch (error) {
@@ -16,7 +25,7 @@ export const animeAPI = {
 
   getById: async (id) => {
     try {
-      const res = await fetch(`${API_BASE}/api/anime/${id}`)
+      const res = await fetch(`${API_BASE}/api/anime/${id}`, { headers: idHeaders() })
       // 404 and 503 return an error object, which callers would render as a blank anime
       if (!res.ok) return null
       return await res.json()
@@ -28,7 +37,7 @@ export const animeAPI = {
 
   getByYear: async (year) => {
     try {
-      const res = await fetch(`${API_BASE}/api/anime/year/${year}`)
+      const res = await fetch(`${API_BASE}/api/anime/year/${year}`, { headers: idHeaders() })
       return await res.json()
     } catch (error) {
       console.error('Error fetching anime by year:', error)
@@ -38,7 +47,7 @@ export const animeAPI = {
 
   getRelated: async (id, limit = 4) => {
     try {
-      const res = await fetch(`${API_BASE}/api/anime/${id}/related?limit=${limit}`)
+      const res = await fetch(`${API_BASE}/api/anime/${id}/related?limit=${limit}`, { headers: idHeaders() })
       return await res.json()
     } catch (error) {
       console.error('Error fetching related anime:', error)
@@ -48,7 +57,7 @@ export const animeAPI = {
 
   getSimilar: async (id, limit = 4, minRating = 6) => {
     try {
-      const res = await fetch(`${API_BASE}/api/anime/${id}/similar?limit=${limit}&min_rating=${minRating}`)
+      const res = await fetch(`${API_BASE}/api/anime/${id}/similar?limit=${limit}&min_rating=${minRating}`, { headers: idHeaders() })
       return await res.json()
     } catch (error) {
       console.error('Error fetching similar anime:', error)
@@ -63,7 +72,7 @@ export const searchAPI = {
     try {
       const res = await fetch(`${GO_SEARCH_API}/api/search/concurrent`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: idHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ query })
       })
       return await res.json()
@@ -77,7 +86,7 @@ export const searchAPI = {
     try {
       const res = await fetch(`${GO_SEARCH_API}/api/search/web`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: idHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ query })
       })
       return await res.json()
@@ -89,7 +98,7 @@ export const searchAPI = {
 
   anime: async (query) => {
     try {
-      const res = await fetch(`${API_BASE}/api/search/semantic?query_text=${encodeURIComponent(query)}&limit=5`)
+      const res = await fetch(`${API_BASE}/api/search/semantic?query_text=${encodeURIComponent(query)}&limit=5`, { headers: idHeaders() })
       return await res.json()
     } catch (error) {
       console.error('Error in anime search:', error)
@@ -100,7 +109,7 @@ export const searchAPI = {
   // full-text + filter search on the Python backend; /api/search/anime is the Go service's POST route, not this one
   animeByTitle: async (query, limit = 20) => {
     try {
-      const res = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(query)}&limit=${limit}`)
+      const res = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(query)}&limit=${limit}`, { headers: idHeaders() })
       const data = await res.json()
       // an error response is an object, and callers render this straight into a list
       return Array.isArray(data) ? data : []
@@ -117,7 +126,7 @@ export const chatAPI = {
     try {
       const res = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: idHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           message,
           context,
@@ -135,7 +144,7 @@ export const chatAPI = {
   getHistory: async (animeId = null, limit = 20) => {
     try {
       const query = animeId ? `?limit=${limit}&anime_id=${animeId}` : `?limit=${limit}`
-      const res = await fetch(`${API_BASE}/api/chat/history${query}`)
+      const res = await fetch(`${API_BASE}/api/chat/history${query}`, { headers: idHeaders() })
       return await res.json()
     } catch (error) {
       console.error('Error fetching chat history:', error)

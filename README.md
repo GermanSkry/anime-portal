@@ -1,4 +1,4 @@
-# 🎬 Anime Portal
+# 🎬 AnimeVibing
 
 **Live:** <https://anime-portal-gules.vercel.app>
 
