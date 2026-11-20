@@ -1,0 +1,128 @@
+name: Deploy
+
+# Runs only after Code Quality has passed on main. GitHub cannot express
+# `needs:` across workflows, so this chains on workflow_run instead — which also
+# means this file is always read from main, never from a PR branch.
+on:
+  workflow_run:
+    workflows: ["Code Quality"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing image tag to deploy (a commit SHA). Leave empty to build from main."
+        required: false
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE: ghcr.io/germanskry/anime-portal-backend
+  GO_IMAGE: ghcr.io/germanskry/anime-portal-go-search
+
+jobs:
+  build:
+    name: Build and push images
+    # a failed Code Quality run must not reach the server
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+    steps:
+      - name: Resolve the commit to deploy
+        id: resolve
+        run: |
+          if [ -n "${{ inputs.tag }}" ]; then
+            echo "sha=" >> "$GITHUB_OUTPUT"
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+            echo "prebuilt=true" >> "$GITHUB_OUTPUT"
+          else
+            # workflow_run reports the triggering commit here; github.sha would be
+            # whatever main pointed at when this workflow started
+            SHA="${{ github.event.workflow_run.head_sha || github.sha }}"
+            echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+            echo "tag=$SHA" >> "$GITHUB_OUTPUT"
+            echo "prebuilt=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v7
+        if: steps.resolve.outputs.prebuilt == 'false'
+        with:
+          ref: ${{ steps.resolve.outputs.sha }}
+
+      - uses: docker/setup-buildx-action@v4
+        if: steps.resolve.outputs.prebuilt == 'false'
+
+      - uses: docker/login-action@v4
+        if: steps.resolve.outputs.prebuilt == 'false'
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # the torch layer dominates this image and almost never changes, so the
+      # cache turns a ~2.1 GB build into a small one
+      - name: Backend image
+        if: steps.resolve.outputs.prebuilt == 'false'
+        uses: docker/build-push-action@v7
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ env.BACKEND_IMAGE }}:${{ steps.resolve.outputs.tag }}
+            ${{ env.BACKEND_IMAGE }}:latest
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,scope=backend,mode=max
+
+      - name: Go search image
+        if: steps.resolve.outputs.prebuilt == 'false'
+        uses: docker/build-push-action@v7
+        with:
+          context: ./go-search
+          push: true
+          tags: |
+            ${{ env.GO_IMAGE }}:${{ steps.resolve.outputs.tag }}
+            ${{ env.GO_IMAGE }}:latest
+          cache-from: type=gha,scope=go
+          cache-to: type=gha,scope=go,mode=max
+
+  deploy:
+    name: Deploy to the VPS
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install the deploy key
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy
+          chmod 600 ~/.ssh/deploy
+          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Pull and restart
+        env:
+          TAG: ${{ needs.build.outputs.tag }}
+        run: |
+          ssh -i ~/.ssh/deploy -o BatchMode=yes \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            "IMAGE_TAG=$TAG /opt/anime-portal/deploy.sh"
+
+      - name: Verify the API answers
+        run: |
+          B=https://anime.necromemecon.party:2096
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$B/health" || true)
+            [ "$code" = "200" ] && { echo "health ok after ${i}0s"; break; }
+            sleep 10
+          done
+          [ "$code" = "200" ] || { echo "::error::API never came back healthy"; exit 1; }
+          # the embedding model loads lazily, so check a real query too
+          curl -sf --max-time 20 "$B/api/anime?limit=1" > /dev/null
+          echo "deployed ${{ needs.build.outputs.tag }}"

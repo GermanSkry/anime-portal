@@ -33,6 +33,9 @@ services:
 
   python-backend:
     restart: unless-stopped
+    # CI builds and pushes this; the VPS only pulls. `build:` stays so
+    # `docker compose build python-backend` remains a working manual fallback.
+    image: ghcr.io/germanskry/anime-portal-backend:${IMAGE_TAG:-latest}
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -51,7 +54,9 @@ services:
       postgres:
         condition: service_healthy
     volumes:
-      - ./backend:/app
+      # data only: mounting ./backend over /app would hide the image's code and
+      # make a pulled image meaningless. anime.json is gitignored and lives here.
+      - ./backend/data:/app/data
     command: python -m uvicorn main:app --host 0.0.0.0 --port 8000
 
   redpanda:
@@ -73,6 +78,7 @@ services:
 
   go-search:
     restart: unless-stopped
+    image: ghcr.io/germanskry/anime-portal-go-search:${IMAGE_TAG:-latest}
     build:
       context: ./go-search
       dockerfile: Dockerfile
@@ -97,8 +103,6 @@ services:
         condition: service_healthy
       redpanda:
         condition: service_healthy
-    volumes:
-      - ./go-search:/app
 
 volumes:
   postgres_data:
