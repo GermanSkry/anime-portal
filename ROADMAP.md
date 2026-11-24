@@ -9,15 +9,16 @@ from this list.
 
 ---
 
-## Next session
+## Phone layout
+
+The app has no responsive styling at all. Findings, plan and progress live in
+[MOBILE_ROADMAP.md](MOBILE_ROADMAP.md).
+
+## Deployment follow-ups
 
 Carried over from the first deployment (2026-11-18). None of these break
-anything today.
-
-**Deploy from CI instead of building on the VPS.** Implemented in
-`.github/workflows/deploy.yml` and `deploy.sh`; see DEPLOYMENT.md. Still needs
-the deploy key, the three repository secrets and the package visibility set —
-none of which can be done from the repository.
+anything today. CI-built images and deploy-on-merge, which were the largest
+item here, shipped on 2026-11-20.
 
 **Fix the certificate renewal hook.** acme.sh is configured with
 `reloadcmd = cd /opt/anime-portal && docker compose restart`, but nginx serves

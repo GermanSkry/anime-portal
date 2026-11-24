@@ -146,6 +146,7 @@
 
 .chat-input {
   flex: 1;
+  min-width: 0;
   padding: 12px 16px;
   background: var(--bg-elevated);
   border: 2px solid var(--border);
@@ -215,5 +216,66 @@
   }
   30% {
     opacity: 1;
+  }
+}
+
+
+@media (max-width: 640px) {
+  .chat-container {
+    /* 240px of a 390px screen left the conversation a vertical sliver */
+    grid-template-columns: 1fr;
+    /* Recent takes what it needs, the conversation takes the rest. Without
+       this the two rows split the height and Recent sits half empty. */
+    grid-template-rows: auto 1fr;
+    /* a fixed 700px pushed the input below the fold on a short screen */
+    height: calc(100dvh - 190px);
+    min-height: 420px;
+    gap: 10px;
+  }
+
+  .sidebar {
+    padding: 10px 12px;
+    overflow-y: visible;
+    /* a grid child defaults to min-width:auto, so the scroll strip below would
+       otherwise stretch the whole grid to its content width */
+    min-width: 0;
+  }
+
+  .chat-main {
+    min-width: 0;
+  }
+
+  /* Recent turns into one swipeable row: a vertical list here would eat the
+     screen the conversation needs */
+  .chat-list {
+    display: flex;
+    min-width: 0;
+    gap: 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .chat-list::-webkit-scrollbar {
+    display: none;
+  }
+
+  .chat-item {
+    flex: 0 0 auto;
+    max-width: 62vw;
+    margin-bottom: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .chat-main {
+    padding: 14px;
+  }
+
+  .new-chat-btn {
+    /* 24px is a cursor target, not a thumb one */
+    width: 44px;
+    height: 44px;
   }
 }

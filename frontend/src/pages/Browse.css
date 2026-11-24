@@ -154,3 +154,24 @@
   font-size: 11px;
   color: var(--text-secondary);
 }
+
+
+@media (max-width: 640px) {
+  .browse-grid {
+    /* four across on a phone is about 80px a card */
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .browse-hero {
+    padding: 16px 12px;
+  }
+
+  .search-bar {
+    flex-wrap: wrap;
+  }
+
+  .search-input {
+    min-width: 0;
+  }
+}

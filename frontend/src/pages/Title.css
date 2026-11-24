@@ -255,3 +255,20 @@
   border-color: rgba(217, 70, 239, 0.6);
   transform: translateY(-2px);
 }
+
+
+@media (max-width: 640px) {
+  .title-content {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .title-poster {
+    height: 320px;
+  }
+
+  .similar-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+}

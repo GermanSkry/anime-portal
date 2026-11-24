@@ -392,3 +392,68 @@
   font-size: 12px;
   color: var(--text-secondary);
 }
+
+
+.filter-tabs {
+  display: flex;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* The popups used to carry per-tab pixel offsets inline. They now sit under
+   the bar, which holds at every width; the open tab is already highlighted,
+   so the association is not lost. */
+.filter-popup {
+  top: calc(100% + 8px);
+  left: 0;
+}
+
+@media (max-width: 640px) {
+  .explore-wrapper {
+    padding: 0 4px;
+  }
+
+  .filter-bar {
+    gap: 8px;
+    padding: 12px;
+    margin-bottom: 24px;
+  }
+
+  .filter-tabs {
+    /* four tabs in a row put Studio off-screen */
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .filter-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .filter-tab {
+    flex: 0 0 auto;
+    padding: 12px 14px;   /* a thumb target, not a cursor one */
+  }
+
+  .filter-popup {
+    /* a floating box does not fit; take the width instead */
+    left: 0;
+    right: 0;
+    width: auto;
+    min-width: 0;
+  }
+
+  .result-item {
+    /* a 200px poster left ~190px, which cut titles mid-word */
+    grid-template-columns: 1fr;
+  }
+
+  .result-item-poster {
+    height: 200px;
+  }
+
+  .genre-list {
+    /* two columns of checkboxes is ~90px each here */
+    grid-template-columns: 1fr;
+    max-height: 50vh;
+  }
+}

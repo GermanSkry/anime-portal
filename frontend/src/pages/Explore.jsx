@@ -162,7 +162,10 @@ export default function Explore() {
       </div>
 
       <div className="filter-bar">
-        <button
+        {/* the tabs scroll, the bar does not: overflow on the bar would clip
+            the popups, which are absolutely positioned against it */}
+        <div className="filter-tabs">
+          <button
           className={`filter-tab ${ratingFiltered ? 'active' : ''}`}
           onClick={() => setOpenPopup(openPopup === 'rating' ? null : 'rating')}
         >
@@ -184,12 +187,13 @@ export default function Explore() {
           className={`filter-tab ${studioFiltered ? 'active' : ''}`}
           onClick={() => setOpenPopup(openPopup === 'studio' ? null : 'studio')}
         >
-          🎨 Studio
-        </button>
+            🎨 Studio
+          </button>
+        </div>
 
         {/* Rating Popup */}
         {openPopup === 'rating' && (
-          <div className="filter-popup open" style={{left: '0px', top: '50px'}}>
+          <div className="filter-popup open">
             <div className="popup-title">Rating Range</div>
             <div className="range-inputs">
               <input
@@ -219,7 +223,7 @@ export default function Explore() {
 
         {/* Genre Popup */}
         {openPopup === 'genre' && (
-          <div className="filter-popup open" style={{left: '110px', top: '50px'}}>
+          <div className="filter-popup open">
             <div className="popup-title">Select Genres</div>
             <div className="genre-list">
               {['Action', 'Drama', 'Comedy', 'Fantasy', 'Supernatural', 'Adventure', 'Romance', 'Psychological', 'Slice of Life', 'Mystery', 'Sci-Fi', 'Thriller', 'Horror', 'Ecchi', 'Sports', 'Mecha'].map(g => (
@@ -245,7 +249,7 @@ export default function Explore() {
 
         {/* Year Popup */}
         {openPopup === 'year' && (
-          <div className="filter-popup open" style={{left: '220px', top: '50px'}}>
+          <div className="filter-popup open">
             <div className="popup-title">Year Range</div>
             <div className="range-inputs">
               <input
@@ -273,7 +277,7 @@ export default function Explore() {
 
         {/* Studio Popup */}
         {openPopup === 'studio' && (
-          <div className="filter-popup open" style={{left: '330px', top: '50px'}}>
+          <div className="filter-popup open">
             <div className="popup-title">Select Studio</div>
             <select
               className="studio-dropdown"
