@@ -50,6 +50,12 @@ PREQUEL 848, SPIN_OFF 297 — and `related_anime` has **0 rows**. Ingest creates
 the table and never writes to it. Connected components over those edges give
 1,613 franchises, the largest holding 27 titles.
 
+**The top tier is not internally connected.** Of the 1,000 nearest-neighbour
+edges leaving the 8.5+ tier, only **171 land back inside it** — 17%. Drawing
+only edges between tier members gives scattered dots, not a map. Computing the
+edges *within the sample* instead gives 125 nodes, 500 edges, every node
+connected, average degree 4.
+
 **Renderer sizes**, same author, same API, drop-in swap:
 
 | | |
@@ -64,30 +70,56 @@ on the route.
 
 ## How it behaves
 
+The graph always shows **100-150 nodes**. Which 100-150 changes as you move.
+
 ```
-open Explore     layer 1 renders whole — 73 franchise nodes, rating 8.5+
-click a node     description, and its 3-5 nearest by embedding
-expand ⊕         a franchise node fans out its other entries
-go deeper        the next band unlocks: expanding a node may now pull in
-                 8.5-7.5 titles. The graph grows by what you touch, never
-                 by a thousand at once
-2D ⇄ 3D          same data; in 3D the unlocked bands are z-planes
+open Explore   a sample of the full graph, picked by rating: the 8.5+ tier,
+               collapsed to ~73 franchise nodes
+click a node   detail panel: description and its 3-5 true nearest, which are
+               usually NOT in the tier
+click one      the graph re-centres on it and redraws ~120 nodes around it,
+               with no rating restriction at all
+2D ⇄ 3D        same data, same props
 ```
 
-Two rules keep it readable:
+Rating is **the entry point, not a filter**. It answers "where do I start" and
+then stops applying. Navigation is panning a map, not descending tiers.
 
-**Deeper layers unlock, they never dump.** 900 nodes on screen is a hairball
-whatever the renderer. Depth changes which titles are *allowed in*, and
-expansion brings them.
+### Why the opening sample needs its own edges
 
-**One edge meaning: embedding similarity.** Genre, year and studio become
-filters on which nodes appear, not edge types — if edges mean different things,
-distance on screen means nothing. They are also already covered by Browse.
+Taking the top tier and drawing only the edges between its members does not
+work. Measured: of the 1,000 nearest-neighbour edges leaving the 8.5+ tier,
+**only 171 land back inside it** — 17%. Most of what a great anime is closest
+to is not itself great. Render that and you get scattered dots.
 
-The layers are what make 3D worth 13.6 MB: a z-axis that means "rating tier" is
-a real third dimension, rather than decoration.
+The fix is to compute the opening view's edges **within the sample**: each node
+links to its nearest few among the nodes on screen. Measured on the 125:
 
----
+```
+125 nodes · 500 edges · every node connected · average degree 4
+```
+
+Those edges are "nearest among what you can see", which is the honest thing for
+an overview. The *true* nearest neighbours appear in the detail panel when you
+click a node — and clicking one of those is what re-centres the graph.
+
+### Ship the whole graph, compute neighbourhoods in the browser
+
+The entire graph is smaller than what Explore downloads today:
+
+| | |
+|---|---|
+| 2,500 nodes (id, title, cover, rating, year, franchise) | ~337 kB |
+| ~20,000 edges | ~300 kB |
+| **total, gzipped** | **~200 kB** |
+| what Explore ships today | 2 MB raw, ~680 kB gzipped |
+
+So one request loads everything, and re-centring is a breadth-first walk in
+memory — instant, no network, no endpoint per click. With k=8, a walk reaches
+~8 nodes at depth 1, ~64 at depth 2 and ~500 at depth 3, so a budget of 120
+lands naturally between depths 2 and 3.
+
+This removes most of the API surface this feature looked like it needed.
 
 ## The work, in order
 
@@ -115,15 +147,15 @@ CREATE TABLE anime_neighbours (
 Top 8 per title. Rebuilt whenever embeddings change, which the idempotent
 ingest already tracks.
 
-### 3. Endpoints
+### 3. One endpoint
 
-| | |
-|---|---|
-| `GET /api/graph/layer?max_rating=&min_rating=&collapse=true` | nodes for a band, one per franchise |
-| `GET /api/graph/neighbours/{id}?depth=` | a node's edges, limited to unlocked bands |
-| `GET /api/anime/{id}/franchise` | the other entries behind a ⊕ |
+```
+GET /api/graph        all nodes and edges, franchise ids included
+```
 
-The detail panel reuses `GET /api/anime/{id}`.
+Cacheable, rebuilt only when ingest changes embeddings. Everything else —
+the opening sample, re-centring, expansion — happens in the browser against
+the data it already has. The detail panel reuses `GET /api/anime/{id}`.
 
 ### 4. Frontend, 2D first
 
@@ -145,10 +177,14 @@ discovery.
 
 ## Still open
 
-**Does unlocking a band seed anything visible?** Purely expansion-driven may
-feel empty — nothing changes on screen until you click. The alternative is
-dropping in the 20-30 best-connected titles from the new band. Start with
-purely expansion-driven and see.
+**What exactly does a re-centre keep?** Dropping all 120 nodes and drawing a
+fresh set is disorienting; keeping the clicked node and its path in place costs
+layout stability but preserves the sense of having travelled. Worth trying both
+— it is the difference between a map and a slideshow.
+
+**How far should the walk go before it stops being related?** A budget of 120
+reaches past depth 2, where similarity to the centre is already weak. A
+distance cutoff may matter more than a node count.
 
 **Render performance is entirely untested.** Every number above is database or
 package size. Nothing has put a node on screen. 73 nodes should be trivial; the
@@ -169,6 +205,7 @@ but it is worth watching.
 
 - Explore opens on a readable graph and no longer looks like Browse
 - A node reaches its 3-5 nearest, and a franchise expands in place
-- Depth is reachable without ever rendering more than a few hundred nodes
+- Re-centring stays under ~150 nodes however far you travel
+- Nothing below 8.5 is unreachable: any node is a few clicks from the opening tier
 - `scripts/mobile-check.mjs` still passes on Explore
 - The Explore route's bundle is lazy, so Chat and Browse do not pay for it
