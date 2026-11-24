@@ -9,6 +9,16 @@ from this list.
 
 ---
 
+## Explore as a similarity graph
+
+Explore and Browse overlap; the plan is to split them, with Explore becoming a
+layered similarity graph over the embeddings. Findings and plan in
+[GRAPH_ROADMAP.md](GRAPH_ROADMAP.md).
+
+Step one of that work — loading the 3,351 relation edges that `anime.json`
+already carries into the empty `related_anime` table — also fixes
+`/api/anime/{id}/related`, which returns nothing today.
+
 ## Phone layout
 
 The app has no responsive styling at all. Findings, plan and progress live in
