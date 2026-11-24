@@ -119,22 +119,24 @@ export default function Chat() {
             +
           </button>
         </div>
-        {history.length > 0 ? (
-          history.map((item, i) => (
-            <div
-              key={i}
-              className="chat-item"
-              onClick={() => loadHistoryChat(item)}
-              title={item.user_message}
-            >
-              {item.user_message.substring(0, 30)}...
+        <div className="chat-list">
+          {history.length > 0 ? (
+            history.map((item, i) => (
+              <div
+                key={i}
+                className="chat-item"
+                onClick={() => loadHistoryChat(item)}
+                title={item.user_message}
+              >
+                {item.user_message.substring(0, 30)}...
+              </div>
+            ))
+          ) : (
+            <div style={{ color: 'var(--text-secondary)', fontSize: '12px', padding: '12px' }}>
+              No chats yet
             </div>
-          ))
-        ) : (
-          <div style={{ color: 'var(--text-secondary)', fontSize: '12px', padding: '12px' }}>
-            No chats yet
-          </div>
-        )}
+          )}
+        </div>
       </div>
       <div className="chat-main">
         <div className="chat-messages">

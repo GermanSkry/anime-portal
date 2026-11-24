@@ -111,3 +111,20 @@
   gap: 8px;
   margin-bottom: 16px;
 }
+
+
+/* Phones. One breakpoint: the layouts below are all "stack and shrink the
+   gutters", and a tablet design is work nobody asked for. */
+@media (max-width: 640px) {
+  .app {
+    padding: 12px;
+  }
+
+  .container {
+    padding: 0;
+  }
+
+  .tab-switcher {
+    gap: 4px;
+  }
+}

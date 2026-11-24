@@ -9,82 +9,10 @@ from this list.
 
 ---
 
-## Next session: the phone layout
+## Phone layout
 
-Measured on an iPhone 13 viewport (390px) against the live site, 2026-11-20.
-
-**There are no media queries. Not one, in any of the seven stylesheets.** The
-`<meta name="viewport">` tag is correct, so the browser tries to honour 390px
-and the fixed grids refuse, which pushes the layout viewport out to 523-526px
-on Browse, Explore and Title. Everything is then scaled to fit, which is why it
-reads as "too big and cut off" rather than "too small".
-
-Fixing the grids fixes the zoom as a side effect — the viewport only inflates
-because something refuses to fit.
-
-### In order of how broken it is
-
-**1. Chat is unusable.** `Chat.css:3` is `grid-template-columns: 240px 1fr`.
-On a 390px screen the Recent sidebar takes 240 and the conversation gets the
-remainder, so the messages and the input are a vertical sliver at the edge.
-This is the one that makes the app look broken.
-
-Fix: below the breakpoint, one column. The sidebar becomes either a drawer
-behind the `+` button, or a horizontal strip of recent chats above the thread.
-A drawer is more work but keeps the thread full-height; `height: 700px` on the
-same rule should become a viewport-relative height while you are there.
-
-**2. The Explore filter bar overflows.** Four tabs laid out in a row, and
-"Studio" is off-screen with "Year" clipped. Worse, the popups are positioned
-with hardcoded pixel offsets written into the JSX —
-`Explore.jsx:192,222,248,276` carry `left: '0px'`, `'110px'`, `'220px'`,
-`'330px'`. Those are wrong at any width but the viewport they were eyeballed
-at.
-
-Fix: let the bar wrap or scroll horizontally, and anchor each popup to its own
-tab (`position: absolute` inside a `position: relative` tab) instead of
-measuring from the bar's left edge. On a phone the popups probably want to be
-full-width sheets rather than floating boxes.
-
-**3. Explore result cards clip the title mid-word.** `Explore.css:257` is
-`grid-template-columns: 200px 1fr`, so a 200px poster leaves ~190px and
-"Frieren: Beyond Journey's End" renders as "Friere / Beyo / Journ / End".
-
-Fix: stack poster above content below the breakpoint.
-
-**4. Four-across grids.** `Browse.css:72` and `Title.css:140` are both
-`repeat(4, 1fr)`. Two columns on a phone, or
-`repeat(auto-fill, minmax(150px, 1fr))` and let it decide.
-
-**5. The title page is a two-column grid.** `Title.css:19` is `300px 1fr`.
-Stack it.
-
-### Approach
-
-One breakpoint is probably enough — a `$mobile` of 640px covers phones without
-inventing a tablet design. Add it to each stylesheet rather than a new global
-file, so each layout's override sits next to the rule it overrides.
-
-Worth doing at the same time, because they only show up on a phone:
-
-- **Touch targets.** The filter tabs, the `+` and the pagination controls were
-  all sized for a cursor. 44px is the usual minimum.
-- **499 pages of 5.** Tolerable with a mouse, miserable with a thumb. Raising
-  `itemsPerPage` helps more here than it does on a desktop.
-- **The chat input.** It and the send button were the only elements already
-  overflowing their container at 390px, even before the grid fights.
-
-### Verifying it
-
-`scratchpad/uicheck/mobile.mjs` from this session drives Playwright's
-`devices['iPhone 13']`, reports `window.innerWidth` against
-`document.scrollWidth`, names any element extending past the viewport, and
-screenshots each page. The target is simple: **innerWidth stays 390 and
-scrollWidth equals it on all four pages.** Keep it as an e2e check rather than
-re-eyeballing screenshots.
-
-Rough sizing: Chat is the bulk of it, maybe half a day with the drawer. The
-other four are an hour or two together, since they are all "stack below 640px".
+The app has no responsive styling at all. Findings, plan and progress live in
+[MOBILE_ROADMAP.md](MOBILE_ROADMAP.md).
 
 ## Deployment follow-ups
 
