@@ -194,6 +194,15 @@ they come from `frontend/.env.production`.
 
 ## Pitfalls that have actually bitten
 
+**Compose has to pass every key a service reads.** `python-backend` was given
+`OPENROUTER_API_KEY` and `SERPAPI_KEY` but not `SENTRY_DSN` or
+`POSTHOG_API_KEY`, so for its whole life in production it reported no
+exceptions and no product events — while `go-search`, which was given them,
+looked fine. The code was correct and verified locally; only the wiring was
+missing, and nothing fails when a key is absent, by design. If an integration
+looks dead in production, check `docker compose config` before the code.
+
+
 **`git stash -u` in `/opt/anime-portal` deletes the TLS certificate.**
 `certs/`, `.env.production` and `start.sh` are untracked, and `-u` sweeps
 untracked files. nginx keeps serving from memory, so the damage only appears at
