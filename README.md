@@ -169,6 +169,8 @@ Details, VPS port rules and the manual fallback are in
 | [DATA_MODEL.md](DATA_MODEL.md) | database schema |
 | [DEPLOYMENT.md](DEPLOYMENT.md) | what runs where, VPS ports, shipping a change |
 | [ROADMAP.md](ROADMAP.md) | what is still open, and the known trade-offs |
+| [GRAPH_ROADMAP.md](GRAPH_ROADMAP.md) | turning Explore into a similarity graph |
+| [MOBILE_ROADMAP.md](MOBILE_ROADMAP.md) | the phone layout: what was fixed, what is left |
 | [HISTORY.md](HISTORY.md) | what was built, in order |
 | [CODE_QUALITY_REPORT.md](CODE_QUALITY_REPORT.md) | the linting pass and the 23 bugs it surfaced |
 | [docs/kafka-testing.md](docs/kafka-testing.md) | exercising the consumers locally |
