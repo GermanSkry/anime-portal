@@ -20,6 +20,7 @@ export default function Title() {
   const navigate = useNavigate()
   const [title, setTitle] = useState(null)
   const [similar, setSimilar] = useState([])
+  const [franchise, setFranchise] = useState([])
   const [loading, setLoading] = useState(true)
   const [chatOpen, setChatOpen] = useState(false)
 
@@ -35,11 +36,13 @@ export default function Title() {
         if (data) {
           setTitle(data)
 
-          // Load similar anime
-          const similarData = await animeAPI.getSimilar(id)
-          if (Array.isArray(similarData)) {
-            setSimilar(similarData)
-          }
+          // the rest of the franchise, then what it is closest to by plot
+          const [franchiseData, similarData] = await Promise.all([
+            animeAPI.getFranchise(id),
+            animeAPI.getSimilar(id),
+          ])
+          setFranchise(franchiseData)
+          setSimilar(similarData)
         }
       } catch (error) {
         console.error('Error loading title:', error)
@@ -124,6 +127,32 @@ export default function Title() {
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
           ></iframe>
+        </div>
+      )}
+
+      {franchise.length > 0 && (
+        <div className="similar-section">
+          <div className="similar-title">🎞️ More in this franchise</div>
+          <div className="similar-grid">
+          {franchise.map(anime => (
+            <Link
+              key={anime.id}
+              to={`/title/${anime.id}`}
+              style={{ textDecoration: 'none' }}
+              onClick={() => track('anime_opened', { source: 'franchise', anime_id: anime.id, from_anime_id: id })}
+            >
+              <div className="similar-card">
+                <div className="similar-poster" style={{ backgroundImage: `url(${anime.cover_image})` }}></div>
+                <div className="similar-info">
+                  <div className="similar-name">{anime.title_english || anime.name}</div>
+                  <div className="similar-meta">{anime.year} • {anime.studios?.[0] || 'N/A'}</div>
+                  <div className="similar-genres">{anime.genres?.slice(0, 2).join(', ') || 'N/A'}</div>
+                  <div className="similar-rating">⭐ {anime.rating}</div>
+                </div>
+              </div>
+            </Link>
+          ))}
+          </div>
         </div>
       )}
 

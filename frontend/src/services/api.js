@@ -55,6 +55,20 @@ export const animeAPI = {
     }
   },
 
+  // The rest of this title's franchise, oldest first — the component, not
+  // just the direct relations, so a season whose only link leaves the
+  // catalogue still finds its siblings.
+  getFranchise: async (id, limit = 4) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/anime/${id}/related?limit=${limit}`, { headers: idHeaders() })
+      const data = await res.json()
+      return Array.isArray(data) ? data : []
+    } catch (error) {
+      console.error('Error loading the franchise:', error)
+      return []
+    }
+  },
+
   // four is what the title page's row holds; the graph panel asks for five
   getSimilar: async (id, limit = 4) => {
     try {

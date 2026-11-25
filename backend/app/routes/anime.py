@@ -171,8 +171,55 @@ async def get_similar_anime(anime_id: int, limit: int = Query(5, ge=1, le=20)):
 
 @router.get("/{anime_id}/related")
 async def get_related_anime(anime_id: int, limit: int = Query(4, ge=1, le=20)):
-    """Get related/similar anime (deprecated - use /similar)"""
-    return await get_similar_anime(anime_id, limit)
+    """The rest of this title's franchise, oldest first.
+
+    The franchise, not the direct relations: Sound! Euphonium 3 links only to
+    an entry outside the catalogue, so a one-hop query returned nothing for it
+    while the connected component has four other titles. Watch order is what
+    the reader wants here, so it sorts by year rather than by rating.
+
+    This route used to be registered twice — a one-hop version in
+    characters.py, which won, and a deprecated alias for /similar here, which
+    was unreachable. One route now.
+    """
+    try:
+        conn = await psycopg.AsyncConnection.connect(settings.database_url)
+
+        try:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    ANIME_COLUMNS + """
+                    WHERE a.id <> %s
+                      AND a.franchise_id = (SELECT franchise_id FROM anime WHERE id = %s)
+                    """ + ANIME_GROUP_BY + """
+                    ORDER BY a.year NULLS LAST, a.id
+                    LIMIT %s
+                    """,  # noqa: S608 - the concatenated parts are module constants, never request data
+                    (anime_id, anime_id, limit),
+                )
+
+                return [
+                    {
+                        "id": a[0],
+                        "name": clean_title(a[1]),
+                        "title_english": clean_title(a[2]) if a[2] else None,
+                        "year": a[3],
+                        "rating": a[4],
+                        "genres": list(a[5]) if a[5] else [],
+                        "cover_image": a[6] or "",
+                        "trailer_url": a[9] if a[9] else None,
+                        "studios": list(a[7]) if a[7] else [],
+                        "synopsis": a[8] or "",
+                    }
+                    for a in await cur.fetchall()
+                ]
+        finally:
+            await conn.close()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error finding the franchise: {e}", exc_info=True)
+        raise HTTPException(status_code=503, detail="Anime database unavailable") from e
 
 @router.get("/{anime_id}")
 async def get_anime_by_id(anime_id: int):

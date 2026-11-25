@@ -29,8 +29,9 @@ coloured by genre and joined to what they are closest to by plot. Pick a title
 to see its five closest outside its own franchise; double-click to redraw the
 map around it.
 
-**Title pages** — cover, studio, rating, genres, synopsis, trailer, similar
-titles, and a chat window scoped to that anime.
+**Title pages** — cover, studio, rating, genres, synopsis, trailer, the rest
+of the franchise in watch order, the closest titles by plot, and a chat window
+scoped to that anime.
 
 ### Search, three ways
 
@@ -122,8 +123,8 @@ The same three run in CI on every push and pull request.
 |---|---|
 | `GET /api/anime` | list, paginated, sorted by rating / year / title |
 | `GET /api/anime/{id}` | one title, 404 when it does not exist |
-| `GET /api/anime/{id}/similar` | scored in SQL on genre overlap, rating, year and studio |
-| `GET /api/anime/{id}/related` | sequels, prequels and spin-offs |
+| `GET /api/anime/{id}/similar` | nearest by plot embedding, same list the graph draws, own franchise excluded |
+| `GET /api/anime/{id}/related` | the rest of the franchise, oldest first |
 | `GET /api/anime/{id}/characters` | main cast |
 
 ### Search

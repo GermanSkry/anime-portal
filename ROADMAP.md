@@ -87,10 +87,6 @@ than deleting rows other tables may point at, but the catalogue only grows.
 
 ## Duplicate routes
 
-**`/api/anime/{id}/related` is registered twice.** `characters.py` is included
-before `anime.py` in `main.py`, so the characters version wins and the one in
-`anime.py` — a deprecated alias for `/similar` — is unreachable.
-
 **Three implementations of "search anime".** `GET /api/search` (full-text and
 filters over the whole catalogue, what the frontend uses), `GET
 /api/search/anime` in `chat.py` (scores the top 200 by rating; nothing calls
