@@ -53,15 +53,16 @@ for (const [name, path] of PAGES) {
   const m = await page.evaluate(() => ({
     inner: window.innerWidth,
     scroll: document.documentElement.scrollWidth,
-    // Content inside a deliberate horizontal scroller is meant to extend past
-    // the edge — the Recent strip and the filter bar both do. Only report
-    // elements that overflow the page itself.
+    // Content inside a horizontal scroller is meant to extend past the edge —
+    // the Recent strip and the filter bar do — and content inside an
+    // overflow:hidden box is clipped. Only report what overflows the page.
     over: [...document.querySelectorAll('body *')]
       .filter(el => el.getBoundingClientRect().right > window.innerWidth + 1)
       .filter(el => {
         for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
           const ox = getComputedStyle(p).overflowX
-          if (ox === 'auto' || ox === 'scroll') return false
+          // scrollers show it, hidden/clip cut it off — neither overflows the page
+          if (['auto', 'scroll', 'hidden', 'clip'].includes(ox)) return false
         }
         return true
       })

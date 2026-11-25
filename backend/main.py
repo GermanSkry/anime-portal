@@ -44,7 +44,7 @@ else:
     posthog = None
 
 # Import routers
-from app.routes import anime, characters, chat, embeddings, recommend, search, stats  # noqa: E402 - must follow Sentry init above
+from app.routes import anime, characters, chat, embeddings, graph, recommend, search, stats  # noqa: E402 - must follow Sentry init above
 
 app = FastAPI(title="AnimeVibing API", version="0.1.0")
 
@@ -106,6 +106,7 @@ async def observability():
 
 # Include routers (specific routes first, catch-all last)
 app.include_router(embeddings.router)
+app.include_router(graph.router)
 app.include_router(chat.router)
 app.include_router(search.router)
 app.include_router(recommend.router)
