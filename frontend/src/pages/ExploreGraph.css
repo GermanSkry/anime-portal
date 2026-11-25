@@ -1,0 +1,382 @@
+/* Chat, Browse and Title are all 900px centred; Explore follows them. */
+.graph-page {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.graph-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 12px;
+  min-height: 30px;
+}
+
+.graph-search {
+  position: relative;
+  flex: 0 0 220px;
+}
+
+.graph-search input {
+  width: 100%;
+  padding: 6px 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.graph-search input:focus {
+  outline: none;
+  border-color: rgba(217, 70, 239, 0.5);
+}
+
+.search-results {
+  position: absolute;
+  z-index: 5;
+  top: 34px;
+  left: 0;
+  width: 290px;
+  max-width: 80vw;
+  padding: 4px;
+  list-style: none;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.search-results button {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 9px;
+  background: none;
+  border: 0;
+  border-radius: 7px;
+  color: var(--text-primary);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.search-results button:hover {
+  background: rgba(217, 70, 239, 0.15);
+}
+
+.search-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-meta {
+  flex: none;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.graph-breadcrumbs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.crumb {
+  padding: 6px 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 200ms ease-out;
+}
+
+.crumb:hover:not(:disabled) {
+  border-color: rgba(217, 70, 239, 0.5);
+  color: var(--text-primary);
+}
+
+.crumb:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.crumb.current {
+  background: rgba(217, 70, 239, 0.15);
+  border-color: rgba(217, 70, 239, 0.5);
+  color: var(--text-primary);
+}
+
+.graph-layout {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 16px;
+  height: 700px;        /* the same height as the chat */
+}
+
+.graph-canvas {
+  position: relative;
+  min-width: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.graph-hint {
+  position: absolute;
+  left: 12px;
+  bottom: 10px;
+  font-size: 11px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.graph-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+/* cover and title together are one button to the full page */
+.panel-open {
+  display: block;
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.panel-open:hover .panel-title {
+  color: var(--accent, #d946ef);
+}
+
+.panel-cover {
+  flex: none;             /* a flex item, so stop it being squeezed */
+  width: 100%;
+  height: 210px;
+  background-size: cover;
+  background-position: center;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.panel-title {
+  color: var(--text-primary);
+  font-size: 16px;
+  transition: color 160ms ease-out;
+  line-height: 1.3;
+  margin-bottom: 4px;
+  overflow-wrap: anywhere;
+}
+
+.panel-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.panel-genres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.panel-genre {
+  padding: 3px 8px;
+  background: rgba(217, 70, 239, 0.12);
+  border-radius: 10px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.panel-section {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.panel-related {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 200ms ease-out;
+}
+
+.panel-related:hover {
+  border-color: rgba(217, 70, 239, 0.5);
+  background: var(--bg-base);
+}
+
+.related-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.related-score {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+}
+
+.panel-note {
+  margin: 0 0 4px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.panel-spacer {
+  flex: 1;
+}
+
+.panel-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.panel-btn {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--accent-start), var(--accent-end));
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.panel-btn.ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+.panel-empty {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 20px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+/* what each gesture does, as a two-column list */
+.panel-heading {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.panel-howto {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 10px;
+  margin: 0;
+  font-size: 13.5px;
+}
+
+.panel-howto dt {
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.panel-howto dd {
+  margin: 0;
+}
+
+.panel-empty p:not(.panel-legend) {
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
+.graph-message {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 640px) {
+  .graph-layout {
+    /* the canvas keeps its height, the panel flows underneath */
+    grid-template-columns: 1fr;
+    grid-template-rows: 60vh auto;
+    height: auto;
+  }
+
+  .graph-panel {
+    max-height: none;
+  }
+
+  .panel-related {
+    padding: 12px 10px;   /* a thumb target */
+  }
+}
+
+.panel-legend {
+  margin-top: auto;          /* sits at the foot of the box, whatever its height */
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  font-size: 13.5px;
+}
+
+.legend-genres {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.legend-genre {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.legend-line {
+  display: inline-block;
+  width: 16px;
+  height: 2px;
+  background: rgba(236, 72, 153, 0.75);
+  margin-right: 6px;
+  vertical-align: middle;
+}

@@ -45,6 +45,7 @@ jobs:
     outputs:
       tag: ${{ steps.resolve.outputs.tag }}
       ingest: ${{ steps.pipeline.outputs.changed }}
+      fetch: ${{ steps.pipeline.outputs.fetch }}
     steps:
       - name: Resolve the commit to deploy
         id: resolve
@@ -85,6 +86,19 @@ jobs:
           else
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "data pipeline untouched, skipping ingest"
+          fi
+
+          # The fetcher deciding what to ask AniList for is the one change an
+          # ingest cannot carry: the field is missing from the server's
+          # anime.json, so ingesting it again just writes the same nulls. That
+          # is how trailers stayed empty — the column, the mapping and the
+          # iframe were all in place, and the query never asked for the field.
+          if git diff --name-only HEAD~1 HEAD -- \
+               backend/scripts/fetch_anime_enhanced.py | grep -q .; then
+            echo "fetch=true" >> "$GITHUB_OUTPUT"
+            echo "the fetcher changed, so the catalogue is re-downloaded first"
+          else
+            echo "fetch=false" >> "$GITHUB_OUTPUT"
           fi
 
       - uses: docker/setup-buildx-action@v4
@@ -152,7 +166,7 @@ jobs:
             "IMAGE_TAG=$TAG /opt/anime-portal/deploy.sh"
 
       - name: Refresh the catalogue from AniList
-        if: inputs.fetch
+        if: inputs.fetch || needs.build.outputs.fetch == 'true'
         # ~4 minutes: 50 pages paced for AniList's 30 requests/minute. Keep the
         # SSH connection alive, the runner's default idle timeout is shorter.
         timeout-minutes: 20

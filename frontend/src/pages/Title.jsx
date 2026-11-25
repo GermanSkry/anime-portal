@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, forwardRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import './Title.css'
 import { animeAPI } from '../services/api'
 import { track } from '../services/analytics'
 import ChatModal from '../components/ChatModal'
 
-// Helper to navigate to Explore with filters
+// Genre, year and studio open Browse with that filter already applied.
+// They used to point at /explore, which is the graph now and ignores the state.
 const navigateToExplore = (navigate, filterType, filterValue) => {
-  navigate('/explore', {
+  navigate('/browse', {
     state: {
       applyFilter: { type: filterType, value: filterValue }
     }
@@ -19,6 +20,9 @@ export default function Title() {
   const navigate = useNavigate()
   const [title, setTitle] = useState(null)
   const [similar, setSimilar] = useState([])
+  const [franchise, setFranchise] = useState([])
+  const stripRef = useRef(null)
+  const currentRef = useRef(null)
   const [loading, setLoading] = useState(true)
   const [chatOpen, setChatOpen] = useState(false)
 
@@ -30,15 +34,19 @@ export default function Title() {
       }
 
       try {
+        setFranchise([])
+        setSimilar([])
         const data = await animeAPI.getById(id)
         if (data) {
           setTitle(data)
 
-          // Load similar anime
-          const similarData = await animeAPI.getSimilar(id)
-          if (Array.isArray(similarData)) {
-            setSimilar(similarData)
-          }
+          // the rest of the franchise, then what it is closest to by plot
+          const [franchiseData, similarData] = await Promise.all([
+            animeAPI.getFranchise(id),
+            animeAPI.getSimilar(id),
+          ])
+          setFranchise(franchiseData)
+          setSimilar(similarData)
         }
       } catch (error) {
         console.error('Error loading title:', error)
@@ -50,6 +58,17 @@ export default function Title() {
     loadTitle()
   }, [id])
 
+  // The strip opens on the title you are reading, not on the oldest season.
+  // Setting scrollLeft rather than scrollIntoView, which also scrolls the page
+  // — it was opening the page 700px down, at the strip.
+  useEffect(() => {
+    const strip = stripRef.current
+    const card = currentRef.current
+    if (!strip || !card) return
+    strip.scrollLeft = card.offsetLeft - strip.offsetLeft
+      - (strip.clientWidth - card.clientWidth) / 2
+  }, [franchise])
+
   if (loading) {
     return <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>Loading...</div>
   }
@@ -59,6 +78,18 @@ export default function Title() {
       Could not load this anime. It may not exist, or the server is unavailable.
     </div>
   }
+
+  // The whole run in watch order, with this title in its place, so the strip
+  // shows where you are rather than starting from the oldest every time.
+  //
+  // The filter is not belt and braces. Moving between two titles of one
+  // franchise, `id` changes a render before the new list arrives, so the old
+  // list still holds the title that is now current — two children with the
+  // same key, which React renders twice and then leaves in the DOM after the
+  // list settles. That was the season appearing twice.
+  const current = Number(id)
+  const run = [...franchise.filter(a => a.id !== current), { ...title, id: current, current: true }]
+    .sort((a, b) => (a.year || 0) - (b.year || 0) || a.id - b.id)
 
   return (
     <div className="title-page">
@@ -126,6 +157,32 @@ export default function Title() {
         </div>
       )}
 
+      {franchise.length > 0 && (
+        <div className="similar-section">
+          <div className="similar-title">🎞️ The franchise</div>
+          <div className="strip-wrap">
+            {run.length > 4 && (
+              <button className="strip-arrow left" aria-label="Earlier"
+                      onClick={() => scrollStrip(stripRef, -1)}>‹</button>
+            )}
+            <div className="franchise-strip" ref={stripRef}>
+              {run.map(anime => (
+                <FranchiseCard
+                  key={anime.id}
+                  anime={anime}
+                  from={id}
+                  ref={anime.current ? currentRef : null}
+                />
+              ))}
+            </div>
+            {run.length > 4 && (
+              <button className="strip-arrow right" aria-label="Later"
+                      onClick={() => scrollStrip(stripRef, 1)}>›</button>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="similar-section">
         <div className="similar-title">📽️ Similar Titles</div>
         <div className="similar-grid">
@@ -158,3 +215,38 @@ export default function Title() {
     </div>
   )
 }
+
+// one card width plus its gap, so a press lands on a card rather than between
+function scrollStrip(ref, direction) {
+  const strip = ref.current
+  if (!strip) return
+  strip.scrollBy({ left: direction * (strip.clientWidth * 0.8), behavior: 'smooth' })
+}
+
+const FranchiseCard = forwardRef(function FranchiseCard({ anime, from }, ref) {
+  const body = (
+    <div className={`similar-card ${anime.current ? 'current' : ''}`}>
+      <div className="similar-poster" style={{ backgroundImage: `url(${anime.cover_image})` }}>
+        {anime.current && <span className="strip-you-are-here">You are here</span>}
+      </div>
+      <div className="similar-info">
+        <div className="similar-name">{anime.title_english || anime.name}</div>
+        <div className="similar-meta">{anime.year} • {anime.studios?.[0] || 'N/A'}</div>
+        <div className="similar-rating">⭐ {anime.rating}</div>
+      </div>
+    </div>
+  )
+  return (
+    <div className="strip-item" ref={ref}>
+      {anime.current ? body : (
+        <Link
+          to={`/title/${anime.id}`}
+          style={{ textDecoration: 'none' }}
+          onClick={() => track('anime_opened', { source: 'franchise', anime_id: anime.id, from_anime_id: from })}
+        >
+          {body}
+        </Link>
+      )}
+    </div>
+  )
+})

@@ -1,3 +1,301 @@
+
+/* ---- search results and the filter bar, which used to live on Explore ---- */
+
+.browse-genres {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.browse-loading,
+.browse-none {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.browse-more {
+  display: block;
+  margin: 20px auto 0;
+  padding: 10px 22px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.browse-more:hover {
+  border-color: rgba(217, 70, 239, 0.5);
+}
+
+.filter-bar {
+  display: flex;
+  gap: 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 48px;
+  position: relative;
+}
+
+.filter-tab {
+  padding: 10px 20px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 200ms ease-out;
+  white-space: nowrap;
+  position: relative;
+}
+
+.filter-tab:hover {
+  border-color: rgba(217, 70, 239, 0.5);
+}
+
+.filter-tab::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: transparent;
+  border-radius: 1px;
+  transition: background 200ms;
+}
+
+.filter-tab:hover::after {
+  background: linear-gradient(90deg, var(--accent-start), transparent);
+}
+
+.filter-tab.active {
+  background: rgba(217, 70, 239, 0.1);
+  border-color: rgba(217, 70, 239, 0.4);
+  color: var(--text-primary);
+}
+
+.filter-tab.active::after {
+  background: linear-gradient(90deg, var(--accent-start), var(--accent-end));
+}
+
+.filter-popup {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  display: none;
+  z-index: 10;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  max-width: 400px;
+  min-width: 280px;
+  margin-top: 8px;
+}
+
+.filter-popup.open {
+  display: block;
+}
+
+.popup-title {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+
+.range-inputs {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.range-input {
+  flex: 1;
+  min-width: 60px;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 200ms ease-out;
+  text-align: center;
+}
+
+.range-input:focus {
+  outline: none;
+  border-bottom-color: rgba(217, 70, 239, 0.8);
+  background: transparent;
+  box-shadow: 0 2px 4px rgba(217, 70, 239, 0.15);
+}
+
+.genre-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px 12px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.genre-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.genre-item input {
+  cursor: pointer;
+  accent-color: #d946ef;
+}
+
+.genre-item label {
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.studio-dropdown {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 200ms ease-out;
+  position: relative;
+  z-index: 100;
+}
+
+.studio-dropdown:focus {
+  outline: none;
+  border-color: rgba(217, 70, 239, 0.5);
+  background: rgba(217, 70, 239, 0.07);
+  box-shadow: 0 0 6px rgba(217, 70, 239, 0.1);
+}
+
+.studio-dropdown option {
+  background: var(--bg-base);
+  color: var(--text-primary);
+}
+
+.active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+  padding: 16px;
+  background: rgba(217, 70, 239, 0.05);
+  border: 1px solid rgba(217, 70, 239, 0.2);
+  border-radius: 8px;
+}
+
+.clear-filters-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 200ms ease-out;
+}
+
+.clear-filters-btn:hover {
+  background: rgba(217, 70, 239, 0.15);
+  border-color: rgba(217, 70, 239, 0.4);
+  color: var(--text-primary);
+}
+
+.filter-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(217, 70, 239, 0.15);
+  border: 1px solid rgba(217, 70, 239, 0.3);
+  border-radius: 20px;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.filter-tabs {
+  display: flex;
+  gap: 16px;
+  min-width: 0;
+}
+
+.filter-bar {
+    gap: 8px;
+    padding: 12px;
+    margin-bottom: 24px;
+  }
+
+.filter-tabs {
+    /* four tabs in a row put Studio off-screen */
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+.filter-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+.filter-tab {
+    flex: 0 0 auto;
+    padding: 12px 14px;   /* a thumb target, not a cursor one */
+  }
+
+.filter-popup {
+    /* a floating box does not fit; take the width instead */
+    left: 0;
+    right: 0;
+    width: auto;
+    min-width: 0;
+  }
+
+.genre-list {
+    /* two columns of checkboxes is ~90px each here */
+    grid-template-columns: 1fr;
+    max-height: 50vh;
+  }
+
+.filter-tabs {
+  display: flex;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* The popups sit under the bar rather than under their own tab: the per-tab
+   pixel offsets were wrong at every width but the one they were eyeballed at,
+   and the open tab is highlighted, so the association is not lost. */
+.filter-popup {
+  top: calc(100% + 8px);
+  left: 0;
+}
+
 .browse-wrapper {
   max-width: 900px;
   margin: 0 auto;
@@ -173,5 +471,40 @@
 
   .search-input {
     min-width: 0;
+  }
+
+  .filter-bar {
+    gap: 8px;
+    padding: 12px;
+    margin-bottom: 16px;
+  }
+
+  .filter-tabs {
+    /* four tabs in a row put Studio off-screen */
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .filter-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .filter-tab {
+    flex: 0 0 auto;
+    padding: 12px 14px;   /* a thumb target, not a cursor one */
+  }
+
+  .filter-popup {
+    /* a floating box does not fit; take the width instead */
+    left: 0;
+    right: 0;
+    width: auto;
+    min-width: 0;
+  }
+
+  .genre-list {
+    /* two columns of checkboxes is ~90px each here */
+    grid-template-columns: 1fr;
+    max-height: 50vh;
   }
 }

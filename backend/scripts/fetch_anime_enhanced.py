@@ -10,6 +10,27 @@ import httpx
 DATA_DIR = Path(__file__).parent.parent / "data"
 DATA_DIR.mkdir(exist_ok=True)
 
+# The relation types that mean "same franchise". ADAPTATION points at the
+# manga, and AniList numbers manga in their own space, so a manga id would
+# collide with an anime id in the franchise union-find. OTHER and CHARACTER are
+# crossovers and shared universes: they would merge Death Note with Death
+# Parade, and Steins;Gate with Robotics;Notes.
+FRANCHISE_RELATIONS = {
+    "SEQUEL", "PREQUEL", "SPIN_OFF", "SIDE_STORY",
+    "ALTERNATIVE", "SUMMARY", "PARENT", "COMPILATION", "CONTAINS",
+}
+
+def youtube_url(trailer):
+    """A watch URL, or None. The title page embeds this in a YouTube iframe, so
+    a Dailymotion trailer is dropped rather than shown broken — and AniList's
+    own ids carry stray whitespace (Attack on Titan's ends in a tab)."""
+    trailer = trailer or {}
+    video_id = (trailer.get("id") or "").strip()
+    if trailer.get("site") != "youtube" or not video_id:
+        return None
+    return f"https://www.youtube.com/watch?v={video_id}"
+
+
 # AniList GraphQL query (includes characters, relations, themes)
 ANILIST_QUERY = """
 query ($page: Int, $perPage: Int) {
@@ -33,6 +54,10 @@ query ($page: Int, $perPage: Int) {
         large
       }
       bannerImage
+      trailer {
+        id
+        site
+      }
       genres
       tags {
         name
@@ -168,7 +193,7 @@ async def fetch_anime_data(pages: int = 5) -> dict:
                         related_id = rel_node.get("id")
                         relation_type = rel_edge.get("relationType", "OTHER")
 
-                        if related_id and relation_type in ["SEQUEL", "PREQUEL", "SPIN_OFF", "SIDE_STORY"]:
+                        if related_id and relation_type in FRANCHISE_RELATIONS:
                             relations.append({
                                 "from_id": anime.get("id"),
                                 "to_id": related_id,
@@ -189,6 +214,7 @@ async def fetch_anime_data(pages: int = 5) -> dict:
                         "plot": anime.get("description", "").replace("<br>", " ")[:500],
                         "cover_image": anime.get("coverImage", {}).get("large"),
                         "banner_image": anime.get("bannerImage"),
+                        "trailer_url": youtube_url(anime.get("trailer")),
                         "genres": anime.get("genres", []),
                         "themes": themes,
                         "studios": [s["name"] for s in anime.get("studios", {}).get("nodes", [])],

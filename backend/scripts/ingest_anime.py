@@ -16,6 +16,9 @@ from app.utils.embeddings import generate_embedding
 DATA_DIR = Path(__file__).parent.parent / "data"
 ANIME_FILE = DATA_DIR / "anime.json"
 
+# edges kept per title for the Explore graph
+NEIGHBOURS_PER_ANIME = 8
+
 async def ingest_anime():
     """Load anime data into database with enhanced schema"""
     if not ANIME_FILE.exists():
@@ -340,6 +343,98 @@ async def ingest_anime():
             # Built after the inserts: an index over an empty table is useless to
             # pgvector, and bulk loading into an existing index is slower. Without
             # it every semantic search is a sequential scan of every embedding.
+            # --- relations, franchises and the similarity graph -----------------
+            # anime.json has carried these since the first fetch and nothing ever
+            # loaded them. They are what /api/anime/{id}/related and the Explore
+            # graph's franchise collapsing both need.
+            print("🔗 Loading relations...")
+            await cur.execute("SELECT anilist_id, id FROM anime;")
+            by_anilist = dict(await cur.fetchall())
+
+            edges = []
+            # Pairs of AniList ids, including ids we did not import. A title
+            # outside the 2,500 cannot be a row in related_anime, but it still
+            # joins the two titles either side of it: Sound! Euphonium 3 links
+            # only to Ensemble Contest, which links to the movie, which links
+            # to seasons 1 and 2. Dropping those ids split that franchise in
+            # two. Bridging through them merges 24 components and leaves the
+            # largest at 28 (Dragon Ball), so it does not run away.
+            links = []
+            for anime in anime_list:
+                src = by_anilist.get(anime["id"])
+                for rel in anime.get("relations") or []:
+                    if rel.get("to_id") is not None:
+                        links.append((anime["id"], rel["to_id"]))
+                    dst = by_anilist.get(rel.get("to_id"))
+                    if src is not None and dst is not None and dst != src:
+                        edges.append((src, dst, rel.get("type") or "RELATED"))
+
+            await cur.execute("TRUNCATE related_anime;")
+            if edges:
+                await cur.executemany(
+                    "INSERT INTO related_anime (anime_id_from, anime_id_to, relationship_type) "
+                    "VALUES (%s, %s, %s);",
+                    edges,
+                )
+            print(f"   {len(edges)} relation edges")
+
+            # Franchise = connected component over those edges. Union-find here
+            # rather than a recursive CTE: 2,500 nodes is nothing, and this is
+            # far easier to read.
+            await cur.execute("ALTER TABLE anime ADD COLUMN IF NOT EXISTS franchise_id INTEGER;")
+            parent: dict[int, int] = {}
+
+            def find(x: int) -> int:
+                parent.setdefault(x, x)
+                while parent[x] != x:
+                    parent[x] = parent[parent[x]]
+                    x = parent[x]
+                return x
+
+            for src, dst in links:
+                ra, rb = find(src), find(dst)
+                if ra != rb:
+                    parent[ra] = rb
+
+            # keyed by AniList id above, so group our rows by their component
+            groups: dict[int, list[int]] = {}
+            for anilist_id, aid in by_anilist.items():
+                groups.setdefault(find(anilist_id), []).append(aid)
+            assignments = [(min(members), aid) for members in groups.values() for aid in members]
+            await cur.executemany("UPDATE anime SET franchise_id = %s WHERE id = %s;", assignments)
+            multi = sum(1 for m in groups.values() if len(m) > 1)
+            print(f"   {len(groups)} franchises, {multi} with more than one title")
+
+            # Nearest neighbours, precomputed. One query over the HNSW index
+            # builds every edge in about a second; the graph endpoint just reads it.
+            print("🕸  Building the similarity graph...")
+            await cur.execute("""
+                CREATE TABLE IF NOT EXISTS anime_neighbours (
+                    anime_id INTEGER NOT NULL,
+                    neighbour_id INTEGER NOT NULL,
+                    similarity REAL NOT NULL,
+                    rank SMALLINT NOT NULL,
+                    PRIMARY KEY (anime_id, neighbour_id)
+                );
+            """)
+            await cur.execute("TRUNCATE anime_neighbours;")
+            await cur.execute("""
+                INSERT INTO anime_neighbours (anime_id, neighbour_id, similarity, rank)
+                SELECT e1.anime_id, n.anime_id, (1 - n.d)::real,
+                       row_number() OVER (PARTITION BY e1.anime_id ORDER BY n.d)
+                FROM embeddings e1
+                CROSS JOIN LATERAL (
+                    SELECT e2.anime_id, e1.plot_embedding <=> e2.plot_embedding AS d
+                    FROM embeddings e2
+                    WHERE e2.anime_id <> e1.anime_id
+                    ORDER BY e1.plot_embedding <=> e2.plot_embedding
+                    LIMIT %s
+                ) n;
+            """, (NEIGHBOURS_PER_ANIME,))
+            await cur.execute("SELECT count(*) FROM anime_neighbours;")
+            print(f"   {(await cur.fetchone())[0]} similarity edges")
+            await conn.commit()
+
             print("📐 Building the vector index...")
             await cur.execute(
                 "CREATE INDEX IF NOT EXISTS idx_embeddings_cosine "
@@ -361,7 +456,8 @@ async def ingest_anime():
             print(f"   Studios: {studios_count}")
             print(f"   Embeddings: {embedding_count}")
             print("   Characters: 0 (will add in Phase 2)")
-            print("   Related Anime: 0 (will add in Phase 2)")
+            await cur.execute("SELECT count(*) FROM related_anime;")
+            print(f"   Related Anime: {(await cur.fetchone())[0]}")
 
     finally:
         await conn.close()

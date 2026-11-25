@@ -73,8 +73,8 @@ Both `repeat(4, 1fr)`.
 ### 6. Things that only bite on a phone
 
 - [x] **Touch targets** on the filter tabs and the `+`.
-- [ ] Pagination controls are still cursor-sized.
-- [ ] **499 pages of 5.** Tolerable with a mouse, miserable with a thumb. Raising `itemsPerPage` helps more here than on a desktop.
+- [x] Pagination controls are still cursor-sized. (The pager went with the Explore list.)
+- [x] **499 pages of 5.** Gone with the Explore list: Browse shows 24 results and a Show more button.
 
 ---
 
@@ -123,4 +123,6 @@ Desktop was checked after, since removing the popup offsets changes it too:
 the popups open under the bar rather than under their tab, left-aligned and
 280px wide. The open tab is highlighted, so nothing is ambiguous.
 
-Still open: pagination touch targets, and 499 pages of 5.
+Both remaining items — pagination touch targets and 499 pages of 5 — closed
+on 2026-11-25 when the Explore result list was retired and its filters moved
+to Browse, which shows 24 cards and a Show more button.

@@ -73,29 +73,19 @@ a `make` target that fetches and ingests, would close the gap.
 
 ## Catalogue
 
-**Explore loads the whole catalogue to filter it client-side.** ~2 MB, ~680 KB
-over the wire once nginx has gzipped it. `/api/search` already implements every
-filter Explore has — genres, year, studio, and now rating — so moving Explore
-onto it would remove the duplicated filtering logic and the big download in one
-go. It would also need a total count for pagination, which the endpoint does
-not return yet.
+**Browse's rows still draw from the top 100 by rating.** Deliberate — four
+cards a section — but the genre rows are "best of", not a sample. The search
+and the filters below them go to `/api/search` and reach all 2,500.
 
-**499 pages of 5.** `itemsPerPage` is 5, which was fine at 100 results and is
-not at 2,491. Either raise it or lean harder on the filters.
+**No total count for a filtered search.** `/api/search` returns rows, not a
+count, so Browse pages with "Show more" and can only say "24+ results" rather
+than how many there are.
 
 **Stale titles are never removed.** Ingest upserts and does not prune, so a
 title that drops out of AniList's popular 2,500 stays in the database. Safer
 than deleting rows other tables may point at, but the catalogue only grows.
 
-**Browse still draws from the top 100 by rating.** Deliberate — it shows four
-cards per section — but it means the genre rows are "best of", not a sample of
-the catalogue.
-
 ## Duplicate routes
-
-**`/api/anime/{id}/related` is registered twice.** `characters.py` is included
-before `anime.py` in `main.py`, so the characters version wins and the one in
-`anime.py` — a deprecated alias for `/similar` — is unreachable.
 
 **Three implementations of "search anime".** `GET /api/search` (full-text and
 filters over the whole catalogue, what the frontend uses), `GET
@@ -143,11 +133,9 @@ its lite build. Error tracking is worth the weight; the pageview autocapture
 is the part that could be dropped.
 
 
-**Three `set-state-in-effect` warnings.** One in `Chat.jsx` (fetch on mount,
-benign) and two in `Explore.jsx`, where filtered results are derived into
-state. The Explore one is genuinely derivable during render, but rewriting it
-risks the pagination logic. CI is set to `--max-warnings 3`, so a fourth fails
-the build.
+**One `set-state-in-effect` warning.** In `Chat.jsx` — a fetch on mount,
+benign. The two in `Explore.jsx` went with the page itself when Browse took
+over the filters. CI is set to `--max-warnings 1`, so a second fails the build.
 
 **Browse has three genre sections** — Action, Drama, Psychological. Comedy,
 Romance, Sci-Fi and Adventure are all in the data.

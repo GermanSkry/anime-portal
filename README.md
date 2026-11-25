@@ -19,13 +19,19 @@ ninjas") and a LangGraph agent decides whether to search the catalogue, search
 the web, or answer directly. It quotes real titles from the database, with
 ratings, and links them.
 
-**Browse** — curated rows: highest rated, most recent, and a few genres.
+**Browse** — curated rows: highest rated, most recent, and a few genres. The
+search box and the filters under it — rating, genre, year, studio — go to one
+endpoint together, so a text search and a filter combine and reach all 2,500
+titles.
 
-**Explore** — the whole catalogue with filters for rating, genre, year and
-studio.
+**Explore** — the catalogue as a similarity map. 120 nodes, one per franchise,
+coloured by genre and joined to what they are closest to by plot. Pick a title
+to see its five closest outside its own franchise; double-click to redraw the
+map around it.
 
-**Title pages** — cover, studio, rating, genres, synopsis, trailer, similar
-titles, and a chat window scoped to that anime.
+**Title pages** — cover, studio, rating, genres, synopsis, trailer, the rest
+of the franchise in watch order, the closest titles by plot, and a chat window
+scoped to that anime.
 
 ### Search, three ways
 
@@ -117,18 +123,24 @@ The same three run in CI on every push and pull request.
 |---|---|
 | `GET /api/anime` | list, paginated, sorted by rating / year / title |
 | `GET /api/anime/{id}` | one title, 404 when it does not exist |
-| `GET /api/anime/{id}/similar` | scored in SQL on genre overlap, rating, year and studio |
-| `GET /api/anime/{id}/related` | sequels, prequels and spin-offs |
+| `GET /api/anime/{id}/similar` | nearest by plot embedding, same list the graph draws, own franchise excluded |
+| `GET /api/anime/{id}/related` | the rest of the franchise, oldest first |
 | `GET /api/anime/{id}/characters` | main cast |
 
 ### Search
 
 | | |
 |---|---|
-| `GET /api/search?q=&genres=&year_min=&year_max=&studios=&limit=&offset=` | full-text with filters |
+| `GET /api/search?q=&genres=&rating_min=&rating_max=&year_min=&year_max=&studios=&limit=&offset=` | full-text and filters; every parameter is optional, so either alone works |
 | `POST /api/search/semantic?query_text=&limit=` | embedding similarity through pgvector |
 | `POST /api/search/web` | SerpAPI, cached in Redis — **Go, `:8080`** |
 | `POST /api/search/concurrent` | web and catalogue at once — **Go, `:8080`** |
+
+### Graph
+
+`GET /api/graph?seed_size=&collapse_franchises=` — every node and edge of the
+similarity map in one response, plus the opening sample. ~236 KB gzipped, so
+re-centring is a walk in memory rather than a request.
 
 ### Chat
 
@@ -152,7 +164,10 @@ the commit SHA, and ship them to the VPS over SSH. The frontend goes to Vercel
 in parallel. Roughly a minute end to end.
 
 The database is only re-ingested when a commit touches the data pipeline
-itself, so an unrelated change never rebuilds the catalogue. A rollback is the
+itself, so an unrelated change never rebuilds the catalogue. A commit to
+`fetch_anime_enhanced.py` also re-downloads from AniList first — a new field
+is not in the server's `anime.json`, so ingesting the old file would only
+write the same nulls. A rollback is the
 Deploy workflow run by hand with an older commit SHA — that path skips the
 build and only pulls.
 
