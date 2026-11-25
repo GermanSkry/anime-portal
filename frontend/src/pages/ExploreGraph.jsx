@@ -97,7 +97,10 @@ export default function ExploreGraph() {
       .catch(e => setError(e.message))
   }, [])
 
-  // the canvas needs explicit pixels, so follow the container
+  // The canvas needs explicit pixels, so follow the container. It only exists
+  // once the graph has loaded — mounted with an empty dependency list this ran
+  // against the loading message, observed nothing, and left the width at the
+  // 800 default. That went unnoticed while the page was wider than 800.
   useEffect(() => {
     const el = wrapRef.current
     if (!el) return
@@ -107,7 +110,14 @@ export default function ExploreGraph() {
     })
     ro.observe(el)
     return () => ro.disconnect()
-  }, [])
+  }, [view])
+
+  // the fit is computed for one canvas size, so a resize leaves the map
+  // cropped — narrowing Explore to 900px cut the right-hand nodes off
+  useEffect(() => {
+    const t = setTimeout(() => graphRef.current?.zoomToFit(300, 50), 60)
+    return () => clearTimeout(t)
+  }, [size])
 
   const recentre = useCallback((node) => {
     if (!graph) return
@@ -287,6 +297,12 @@ export default function ExploreGraph() {
               </div>
 
               <div className="panel-section">Closest by plot</div>
+              {related.length === 0 && (
+                <p className="panel-note">
+                  Everything closest to this one by plot is its own franchise,
+                  which the map already shows in white.
+                </p>
+              )}
               {related.map(r => (
                 <button key={r.id} className="panel-related" onClick={() => recentre(r)}>
                   <span className="related-name">{r.name}</span>

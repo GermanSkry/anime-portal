@@ -1,5 +1,6 @@
+/* Chat, Browse and Title are all 900px centred; Explore follows them. */
 .graph-page {
-  max-width: 1200px;
+  max-width: 900px;
   margin: 0 auto;
 }
 
@@ -113,9 +114,9 @@
 
 .graph-layout {
   display: grid;
-  grid-template-columns: 1fr 300px;
+  grid-template-columns: 1fr 280px;
   gap: 16px;
-  height: 640px;
+  height: 700px;        /* the same height as the chat */
 }
 
 .graph-canvas {
@@ -240,6 +241,13 @@
 
 .related-score {
   flex: 0 0 auto;
+  color: var(--text-muted);
+}
+
+.panel-note {
+  margin: 0 0 4px;
+  font-size: 12.5px;
+  line-height: 1.5;
   color: var(--text-muted);
 }
 
