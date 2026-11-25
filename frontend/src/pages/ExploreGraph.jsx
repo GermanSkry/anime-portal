@@ -64,6 +64,7 @@ export default function ExploreGraph() {
   // count, so a double click is two clicks on one node, timed here
   const lastClick = useRef({ id: null, at: 0 })
   const [trail, setTrail] = useState([])
+  const [query, setQuery] = useState('')
   const [error, setError] = useState(null)
   const [size, setSize] = useState({ width: 800, height: 560 })
 
@@ -106,6 +107,14 @@ export default function ExploreGraph() {
     return <div className="graph-message">Loading 2,500 anime…</div>
   }
 
+  const q = query.trim().toLowerCase()
+  // 2,500 names in memory, so no request and no debounce; best rated first,
+  // because a search for "gundam" should not open on a picture drama
+  const matches = q.length < 2 ? [] : [...graph.nodes.values()]
+    .filter(n => n.name?.toLowerCase().includes(q))
+    .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+    .slice(0, 8)
+
   const related = selected ? nearest(graph, selected.id, 5) : []
   // white is reserved for the franchise of whatever is selected, so it only
   // means something when that franchise has more than one title on screen
@@ -127,6 +136,30 @@ export default function ExploreGraph() {
   return (
     <div className="graph-page">
       <div className="graph-header">
+        <div className="graph-search">
+          <input
+            type="search"
+            value={query}
+            placeholder="Start from a title…"
+            onChange={e => setQuery(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && matches[0]) { recentre(matches[0]); setQuery('') }
+              if (e.key === 'Escape') setQuery('')
+            }}
+          />
+          {matches.length > 0 && (
+            <ul className="search-results">
+              {matches.map(n => (
+                <li key={n.id}>
+                  <button onClick={() => { recentre(n); setQuery('') }}>
+                    <span className="search-name">{n.name}</span>
+                    <span className="search-meta">{n.year} · {n.rating}★</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
         <div className="graph-breadcrumbs">
           <button className="crumb" onClick={backToSeed} disabled={!centre}>
             ★ Top rated
@@ -237,6 +270,7 @@ export default function ExploreGraph() {
                 </button>
               ))}
 
+              <div className="panel-spacer" />
               <div className="panel-actions">
                 <button className="panel-btn" onClick={() => recentre(selected)}>
                   Travel here
@@ -253,13 +287,14 @@ export default function ExploreGraph() {
                 it is closest to; travelling there redraws the map around it.
               </p>
               <p className="panel-legend">
-                {Object.entries(GENRE_COLOURS).map(([name, colour]) => (
-                  <span key={name} className="legend-genre">
-                    <span className="legend-dot" style={{ background: colour }} />
-                    {name}
-                  </span>
-                ))}
-                <br />
+                <span className="legend-genres">
+                  {Object.entries(GENRE_COLOURS).map(([name, colour]) => (
+                    <span key={name} className="legend-genre">
+                      <span className="legend-dot" style={{ background: colour }} />
+                      {name}
+                    </span>
+                  ))}
+                </span>
                 <span className="legend-dot" style={{ background: FRANCHISE }} /> the
                 franchise of the title you pick
                 <br />

@@ -10,6 +10,16 @@ import httpx
 DATA_DIR = Path(__file__).parent.parent / "data"
 DATA_DIR.mkdir(exist_ok=True)
 
+# The relation types that mean "same franchise". ADAPTATION points at the
+# manga, and AniList numbers manga in their own space, so a manga id would
+# collide with an anime id in the franchise union-find. OTHER and CHARACTER are
+# crossovers and shared universes: they would merge Death Note with Death
+# Parade, and Steins;Gate with Robotics;Notes.
+FRANCHISE_RELATIONS = {
+    "SEQUEL", "PREQUEL", "SPIN_OFF", "SIDE_STORY",
+    "ALTERNATIVE", "SUMMARY", "PARENT", "COMPILATION", "CONTAINS",
+}
+
 # AniList GraphQL query (includes characters, relations, themes)
 ANILIST_QUERY = """
 query ($page: Int, $perPage: Int) {
@@ -168,7 +178,7 @@ async def fetch_anime_data(pages: int = 5) -> dict:
                         related_id = rel_node.get("id")
                         relation_type = rel_edge.get("relationType", "OTHER")
 
-                        if related_id and relation_type in ["SEQUEL", "PREQUEL", "SPIN_OFF", "SIDE_STORY"]:
+                        if related_id and relation_type in FRANCHISE_RELATIONS:
                             relations.append({
                                 "from_id": anime.get("id"),
                                 "to_id": related_id,

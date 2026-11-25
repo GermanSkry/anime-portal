@@ -4,8 +4,78 @@
 }
 
 .graph-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
   margin-bottom: 12px;
   min-height: 30px;
+}
+
+.graph-search {
+  position: relative;
+  flex: 0 0 220px;
+}
+
+.graph-search input {
+  width: 100%;
+  padding: 6px 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.graph-search input:focus {
+  outline: none;
+  border-color: rgba(217, 70, 239, 0.5);
+}
+
+.search-results {
+  position: absolute;
+  z-index: 5;
+  top: 34px;
+  left: 0;
+  width: 290px;
+  max-width: 80vw;
+  padding: 4px;
+  list-style: none;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.search-results button {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 9px;
+  background: none;
+  border: 0;
+  border-radius: 7px;
+  color: var(--text-primary);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.search-results button:hover {
+  background: rgba(217, 70, 239, 0.15);
+}
+
+.search-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-meta {
+  flex: none;
+  font-size: 11px;
+  color: var(--text-muted);
 }
 
 .graph-breadcrumbs {
@@ -67,6 +137,8 @@
 }
 
 .graph-panel {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   background: var(--bg-surface);
   border: 1px solid var(--border);
@@ -76,6 +148,7 @@
 }
 
 .panel-cover {
+  flex: none;             /* a flex item, so stop it being squeezed */
   width: 100%;
   height: 160px;
   background-size: cover;
@@ -153,6 +226,10 @@
   color: var(--text-muted);
 }
 
+.panel-spacer {
+  flex: 1;
+}
+
 .panel-actions {
   display: flex;
   gap: 8px;
@@ -178,12 +255,15 @@
 }
 
 .panel-empty {
-  font-size: 12.5px;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  font-size: 13px;
   line-height: 1.55;
   color: var(--text-secondary);
 }
 
-.panel-empty p {
+.panel-empty p:not(.panel-legend) {
   margin-top: 8px;
   line-height: 1.5;
 }
@@ -212,11 +292,20 @@
 }
 
 .panel-legend {
-  margin-top: 14px;
+  margin-top: auto;          /* sits at the foot of the box, whatever its height */
   padding-top: 12px;
   border-top: 1px solid var(--border);
   font-size: 11.5px;
-  line-height: 1.9;
+  line-height: 1.8;
+}
+
+/* two even columns, so the eight groups fill the width instead of wrapping
+   into a ragged block */
+.legend-genres {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 8px;
+  margin-bottom: 10px;
 }
 
 .legend-dot {
@@ -229,8 +318,8 @@
 }
 
 .legend-genre {
-  display: inline-block;
-  margin-right: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
