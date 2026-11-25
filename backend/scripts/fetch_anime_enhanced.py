@@ -20,6 +20,17 @@ FRANCHISE_RELATIONS = {
     "ALTERNATIVE", "SUMMARY", "PARENT", "COMPILATION", "CONTAINS",
 }
 
+def youtube_url(trailer):
+    """A watch URL, or None. The title page embeds this in a YouTube iframe, so
+    a Dailymotion trailer is dropped rather than shown broken — and AniList's
+    own ids carry stray whitespace (Attack on Titan's ends in a tab)."""
+    trailer = trailer or {}
+    video_id = (trailer.get("id") or "").strip()
+    if trailer.get("site") != "youtube" or not video_id:
+        return None
+    return f"https://www.youtube.com/watch?v={video_id}"
+
+
 # AniList GraphQL query (includes characters, relations, themes)
 ANILIST_QUERY = """
 query ($page: Int, $perPage: Int) {
@@ -43,6 +54,10 @@ query ($page: Int, $perPage: Int) {
         large
       }
       bannerImage
+      trailer {
+        id
+        site
+      }
       genres
       tags {
         name
@@ -199,6 +214,7 @@ async def fetch_anime_data(pages: int = 5) -> dict:
                         "plot": anime.get("description", "").replace("<br>", " ")[:500],
                         "cover_image": anime.get("coverImage", {}).get("large"),
                         "banner_image": anime.get("bannerImage"),
+                        "trailer_url": youtube_url(anime.get("trailer")),
                         "genres": anime.get("genres", []),
                         "themes": themes,
                         "studios": [s["name"] for s in anime.get("studios", {}).get("nodes", [])],

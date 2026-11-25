@@ -55,7 +55,8 @@ export const animeAPI = {
     }
   },
 
-  getSimilar: async (id, limit = 5) => {
+  // four is what the title page's row holds; the graph panel asks for five
+  getSimilar: async (id, limit = 4) => {
     try {
       const res = await fetch(`${API_BASE}/api/anime/${id}/similar?limit=${limit}`, { headers: idHeaders() })
       return await res.json()

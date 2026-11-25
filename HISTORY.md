@@ -17,8 +17,10 @@ Open work lives in [ROADMAP.md](ROADMAP.md). Current architecture is in
 AniList GraphQL → `data/anime.json` → PostgreSQL.
 
 - 250 anime with titles, year, rating, genres, cover art, plot
-- Enhanced pass added trailers, characters, relations and themes, and split
-  studios into `studios` + `anime_studios`
+- Enhanced pass added characters, relations and themes, and split studios
+  into `studios` + `anime_studios`. It was credited with trailers too, but
+  never asked AniList for the field — the column stayed NULL and the title
+  page's trailer block never rendered until 2026-11-25
 - `scripts/fetch_anime_enhanced.py` is the surviving fetcher; two earlier
   versions were deleted in the code quality review
 
