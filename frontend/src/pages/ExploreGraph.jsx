@@ -322,6 +322,7 @@ export default function ExploreGraph() {
             </>
           ) : (
             <div className="panel-empty">
+              <h3 className="panel-heading">Description</h3>
               <p>
                 The highest rated anime, one per franchise. Pick one to see what
                 it is closest to; travelling there redraws the map around it.

@@ -290,6 +290,13 @@
 }
 
 /* what each gesture does, as a two-column list */
+.panel-heading {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
 .panel-howto {
   display: grid;
   grid-template-columns: auto 1fr;
