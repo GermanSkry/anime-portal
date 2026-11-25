@@ -135,6 +135,71 @@
   border-radius: 2px;
 }
 
+/* the franchise: every season in year order, scrolled rather than truncated */
+.strip-wrap {
+  position: relative;
+}
+
+.franchise-strip {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  padding-bottom: 6px;
+}
+
+.strip-item {
+  flex: 0 0 calc((100% - 42px) / 4);   /* four across, same size as the grid */
+  scroll-snap-align: start;
+}
+
+.similar-card.current {
+  border-color: rgba(217, 70, 239, 0.6);
+  cursor: default;
+}
+
+.similar-card.current:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.strip-you-are-here {
+  position: absolute;
+  z-index: 1;
+  top: 8px;
+  left: 8px;
+  padding: 3px 8px;
+  background: rgba(217, 70, 239, 0.9);
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.strip-arrow {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  width: 34px;
+  height: 34px;
+  margin-top: -17px;
+  background: rgba(10, 10, 10, 0.85);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: var(--text-primary);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.strip-arrow:hover {
+  border-color: rgba(217, 70, 239, 0.6);
+}
+
+.strip-arrow.left { left: -14px; }
+.strip-arrow.right { right: -14px; }
+
 .similar-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -265,6 +330,15 @@
 
   .title-poster {
     height: 320px;
+  }
+
+  .strip-item {
+    /* two and a bit, so the strip reads as scrollable */
+    flex: 0 0 45%;
+  }
+
+  .strip-arrow {
+    display: none;   /* a thumb swipes */
   }
 
   .similar-grid {

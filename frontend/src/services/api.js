@@ -57,8 +57,9 @@ export const animeAPI = {
 
   // The rest of this title's franchise, oldest first — the component, not
   // just the direct relations, so a season whose only link leaves the
-  // catalogue still finds its siblings.
-  getFranchise: async (id, limit = 4) => {
+  // catalogue still finds its siblings. All of them: the page shows the whole
+  // run in watch order and scrolls, and the largest here is 28 (Dragon Ball).
+  getFranchise: async (id, limit = 40) => {
     try {
       const res = await fetch(`${API_BASE}/api/anime/${id}/related?limit=${limit}`, { headers: idHeaders() })
       const data = await res.json()

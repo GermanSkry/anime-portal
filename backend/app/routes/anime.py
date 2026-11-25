@@ -170,7 +170,8 @@ async def get_similar_anime(anime_id: int, limit: int = Query(5, ge=1, le=20)):
 
 
 @router.get("/{anime_id}/related")
-async def get_related_anime(anime_id: int, limit: int = Query(4, ge=1, le=20)):
+# the largest franchise in the catalogue is 28 titles (Dragon Ball)
+async def get_related_anime(anime_id: int, limit: int = Query(40, ge=1, le=50)):
     """The rest of this title's franchise, oldest first.
 
     The franchise, not the direct relations: Sound! Euphonium 3 links only to
