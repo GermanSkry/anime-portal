@@ -5,9 +5,10 @@ import { animeAPI } from '../services/api'
 import { track } from '../services/analytics'
 import ChatModal from '../components/ChatModal'
 
-// Helper to navigate to Explore with filters
+// Genre, year and studio open Browse with that filter already applied.
+// They used to point at /explore, which is the graph now and ignores the state.
 const navigateToExplore = (navigate, filterType, filterValue) => {
-  navigate('/explore', {
+  navigate('/browse', {
     state: {
       applyFilter: { type: filterType, value: filterValue }
     }

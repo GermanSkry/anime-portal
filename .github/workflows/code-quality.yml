@@ -95,9 +95,9 @@ jobs:
 
       - name: Lint
         # oxlint reports these as warnings and exits 0; -D warnings makes them fail the job.
-        # Three known set-state-in-effect warnings are not fixed yet, so warnings are
+        # One known set-state-in-effect warning is not fixed yet, so warnings are
         # reported but do not fail. Remove --max-warnings once they are resolved.
-        run: npx oxlint --max-warnings 3
+        run: npx oxlint --max-warnings 1
 
       - name: Build
         run: npm run build

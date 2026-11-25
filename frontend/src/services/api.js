@@ -109,17 +109,32 @@ export const searchAPI = {
   // full-text + filter search over the whole catalogue. Not /api/search/anime:
   // that name is taken twice — a GET in chat.py that only scores the top 200 by
   // rating, and the Go service's POST — and neither filters the full catalogue.
-  animeByTitle: async (query, limit = 20) => {
+  //
+  // Every argument is optional and blank ones are left off, so this is the one
+  // call behind a text search, a filter, or both at once. The server does the
+  // work; Browse never downloads the catalogue to sift it in the browser.
+  catalogue: async ({ q, genres, ratingMin, ratingMax, yearMin, yearMax, studio,
+                      limit = 24, offset = 0 } = {}) => {
+    const params = new URLSearchParams({ limit, offset })
+    if (q) params.set('q', q)
+    if (genres?.length) params.set('genres', genres.join(','))
+    if (ratingMin != null) params.set('rating_min', ratingMin)
+    if (ratingMax != null) params.set('rating_max', ratingMax)
+    if (yearMin != null) params.set('year_min', yearMin)
+    if (yearMax != null) params.set('year_max', yearMax)
+    if (studio) params.set('studios', studio)
     try {
-      const res = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(query)}&limit=${limit}`, { headers: idHeaders() })
+      const res = await fetch(`${API_BASE}/api/search?${params}`, { headers: idHeaders() })
       const data = await res.json()
       // an error response is an object, and callers render this straight into a list
       return Array.isArray(data) ? data : []
     } catch (error) {
-      console.error('Error in anime title search:', error)
+      console.error('Error in catalogue search:', error)
       return []
     }
-  }
+  },
+
+  animeByTitle: (query, limit = 20) => searchAPI.catalogue({ q: query, limit }),
 }
 
 // Chat API endpoints

@@ -31,15 +31,17 @@ class SemanticSearchResponse(BaseModel):
 @router.get("")
 async def search_anime(
     req: Request,
-    q: str = Query(..., min_length=1),
+    q: str = Query(None),
     genres: str = Query(None),
+    rating_min: float = Query(None, ge=0, le=10),
+    rating_max: float = Query(None, ge=0, le=10),
     year_min: int = Query(None),
     year_max: int = Query(None),
     studios: str = Query(None),
     limit: int = Query(20, ge=1, le=2500),
     offset: int = Query(0, ge=0)
 ):
-    """Full-text search + multi-filter for anime"""
+    """Full-text search and filters. Either alone works: q empty is a pure filter."""
     conn = await psycopg.AsyncConnection.connect(settings.database_url)
 
     try:
@@ -65,6 +67,14 @@ async def search_anime(
                 genre_list = [g.strip() for g in genres.split(",")]
                 query += " AND a.genres && %s"
                 params.append(genre_list)
+
+            # Rating range
+            if rating_min is not None:
+                query += " AND a.rating >= %s"
+                params.append(rating_min)
+            if rating_max is not None:
+                query += " AND a.rating <= %s"
+                params.append(rating_max)
 
             # Year range
             if year_min is not None:
@@ -105,8 +115,11 @@ async def search_anime(
                 search_type="fulltext",
                 result_count=len(results),
                 zero_results=len(results) == 0,
-                query_length=len(q),
-                has_filters=any(x is not None for x in (genres, year_min, year_max, studios)),
+                query_length=len(q or ""),
+                has_filters=any(
+                    x is not None
+                    for x in (genres, rating_min, rating_max, year_min, year_max, studios)
+                ),
             )
 
             return [
