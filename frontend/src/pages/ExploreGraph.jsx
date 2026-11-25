@@ -128,6 +128,7 @@ export default function ExploreGraph() {
               linkWidth={l => (isLit(l) ? 1.8 : 0.3 + (l.w || 0) * 1.2)}
               d3VelocityDecay={0.3}
               cooldownTicks={120}
+              nodeLabel={() => ''}
               onNodeHover={n => setHovered(n?.id ?? null)}
               onNodeClick={n => {
                 const now = Date.now()
