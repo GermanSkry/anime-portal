@@ -47,6 +47,29 @@ const groupOf = node =>
 const colourFor = (node, litFranchise) =>
   (node.franchise === litFranchise ? FRANCHISE : GENRE_COLOURS[groupOf(node)] || UNGENRED)
 
+// One painter for both the quiet labels and the hovered one, which is larger
+// and drawn opaque. Sizes are divided by the zoom so a label keeps the same
+// size on screen however far in you are.
+function drawLabel(ctx, node, scale, { size, solid }) {
+  const text = node.name.length > 26 && !solid ? node.name.slice(0, 25) + '…' : node.name
+  ctx.font = `${Math.max(3, size / scale)}px -apple-system, sans-serif`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'top'
+  const pad = 3 / scale
+  const h = (size + 3) / scale
+  const w = ctx.measureText(text).width
+  const y = node.y + radiusOf(node) + 2 / scale
+  ctx.fillStyle = solid ? '#0a0a0a' : 'rgba(10,10,10,0.72)'
+  ctx.fillRect(node.x - w / 2 - pad, y - pad / 2, w + pad * 2, h)
+  if (solid) {
+    ctx.lineWidth = 1 / scale
+    ctx.strokeStyle = 'rgba(148,163,184,0.5)'
+    ctx.strokeRect(node.x - w / 2 - pad, y - pad / 2, w + pad * 2, h)
+  }
+  ctx.fillStyle = solid ? '#ffffff' : 'rgba(255,255,255,0.92)'
+  ctx.fillText(text, node.x, y)
+}
+
 // Rating drives size, but gently: the 8.5+ tier spans 8.5 to 9.1, so anything
 // steeper turns a 0.6 point spread into wildly different blobs.
 const radiusOf = node => 3 + Math.max(0, (node.rating || 6) - 6) * 1.1
@@ -59,7 +82,7 @@ export default function ExploreGraph() {
   const [view, setView] = useState(null)
   const [selected, setSelected] = useState(null)
   const [centre, setCentre] = useState(null)
-  const [hovered, setHovered] = useState(null)
+  const [hovered, setHovered] = useState(null)   // the node, for the label drawn last
   // the renderer's click handler does not carry the native event's detail
   // count, so a double click is two clicks on one node, timed here
   const lastClick = useRef({ id: null, at: 0 })
@@ -192,7 +215,7 @@ export default function ExploreGraph() {
               d3VelocityDecay={0.3}
               cooldownTicks={120}
               nodeLabel={() => ''}
-              onNodeHover={n => setHovered(n?.id ?? null)}
+              onNodeHover={setHovered}
               onNodeClick={n => {
                 const now = Date.now()
                 const { id, at } = lastClick.current
@@ -219,18 +242,12 @@ export default function ExploreGraph() {
                 }
                 // At fit-zoom 120 labels collide into mush, so the map shows shape
                 // and colour, and names appear on hover or once you zoom in.
-                if (scale > 2.2 || isCentre || isPicked || node.id === hovered) {
-                  const label = node.name.length > 26 ? node.name.slice(0, 25) + '…' : node.name
-                  ctx.font = `${Math.max(3, 11 / scale)}px -apple-system, sans-serif`
-                  ctx.textAlign = 'center'
-                  ctx.textBaseline = 'top'
-                  const y = node.y + r + 2 / scale
-                  const w = ctx.measureText(label).width
-                  ctx.fillStyle = 'rgba(10,10,10,0.72)'
-                  ctx.fillRect(node.x - w / 2 - 1, y - 0.5, w + 2, 11 / scale)
-                  ctx.fillStyle = 'rgba(255,255,255,0.92)'
-                  ctx.fillText(label, node.x, y)
+                if ((scale > 2.2 || isCentre || isPicked) && node.id !== hovered?.id) {
+                  drawLabel(ctx, node, scale, { size: 11, solid: false })
                 }
+              }}
+              onRenderFramePost={(ctx, scale) => {
+                if (hovered) drawLabel(ctx, hovered, scale, { size: 15, solid: true })
               }}
               nodePointerAreaPaint={(node, colour, ctx) => {
                 ctx.fillStyle = colour
