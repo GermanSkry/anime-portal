@@ -228,8 +228,11 @@
   vertical-align: middle;
 }
 
-.legend-dot.franchise { background: #f43f5e; }
-.legend-dot.single { background: #64748b; }
+.legend-genre {
+  display: inline-block;
+  margin-right: 10px;
+  white-space: nowrap;
+}
 
 .legend-line {
   display: inline-block;

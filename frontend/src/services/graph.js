@@ -24,29 +24,30 @@ export async function fetchGraph() {
   }
   for (const list of adj.values()) list.sort((x, y) => y.w - x.w)
 
-  // Only franchises with more than one title are worth a colour: a singleton
-  // has no group to reveal, and colouring it adds noise with no information.
-  const franchiseSize = new Map()
-  for (const n of data.nodes) {
-    franchiseSize.set(n.franchise, (franchiseSize.get(n.franchise) || 0) + 1)
-  }
-
   return {
     nodes: new Map(data.nodes.map(n => [n.id, n])),
     adj,
     seed: data.seed,
-    franchiseSize,
   }
 }
 
-/** A node's true nearest, which are usually outside whatever is on screen. */
+/**
+ * A node's true nearest, which are usually outside whatever is on screen.
+ *
+ * Sequels are dropped: a plot embedding puts Kaguya season 2 next to Kaguya
+ * seasons 1 and 3, which the viewer can already see is the same show. The
+ * franchise is on the map in its own colour; this list is for what else to
+ * watch. Only 8 neighbours are stored per node, so a long franchise can
+ * return fewer than `count`.
+ */
 export function nearest(graph, id, count = 5) {
+  const ownFranchise = graph.nodes.get(id)?.franchise
   const seen = new Set()
   return (graph.adj.get(id) || [])
     .filter(n => !seen.has(n.id) && seen.add(n.id))
-    .slice(0, count)
     .map(n => ({ ...graph.nodes.get(n.id), similarity: n.w }))
-    .filter(n => n.id !== undefined)
+    .filter(n => n.id !== undefined && n.franchise !== ownFranchise)
+    .slice(0, count)
 }
 
 /**

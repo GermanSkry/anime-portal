@@ -8,20 +8,44 @@ import { track } from '../services/analytics'
 // for them, so the renderer only loads when this route does
 const ForceGraph2D = lazy(() => import('react-force-graph-2d'))
 
-// A franchise keeps one colour wherever it appears, so Naruto is always the
-// same red. Colours repeat across franchises — with 371 of them that is
-// unavoidable — but two that share a hue are rarely on screen together.
-const FRANCHISE_COLOURS = [
-  '#f43f5e', '#f59e0b', '#22c55e', '#06b6d4', '#a855f7', '#ec4899',
-  '#eab308', '#14b8a6', '#8b5cf6', '#fb7185', '#34d399', '#60a5fa',
+// Colour is genre, not franchise. 371 franchises cannot have 371 colours, so
+// the old scheme gave two unrelated shows the same red and said nothing; genre
+// repeats on purpose, and a red cluster means something. The selected title's
+// own franchise turns white on top, which is the one grouping worth seeing.
+const GENRE_COLOURS = {
+  Comedy: '#facc15',
+  'Action & adventure': '#ef4444',
+  'Sci-fi & mecha': '#38bdf8',
+  Mystery: '#c084fc',
+  'Sports & music': '#fb923c',
+  Romance: '#f472b6',
+  Fantasy: '#22c55e',
+  'Horror & thriller': '#6366f1',
+}
+// A title carries four or five genres and this picks one, so the order is the
+// whole design. Rare, defining genres come first; the mood tags a show merely
+// *also* is — Psychological, Supernatural, Drama, Slice of Life — come last.
+// Checked against the catalogue: Naruto and Demon Slayer land in action,
+// Death Note in mystery, Steins;Gate in sci-fi, Kaguya in comedy, and no
+// group takes less than 5% of the 2,500.
+const GENRE_ORDER = [
+  ['Mahou Shoujo', 'Fantasy'], ['Music', 'Sports & music'], ['Mecha', 'Sci-fi & mecha'],
+  ['Sports', 'Sports & music'], ['Horror', 'Horror & thriller'], ['Mystery', 'Mystery'],
+  ['Sci-Fi', 'Sci-fi & mecha'], ['Adventure', 'Action & adventure'], ['Comedy', 'Comedy'],
+  ['Romance', 'Romance'], ['Fantasy', 'Fantasy'], ['Thriller', 'Horror & thriller'],
+  ['Action', 'Action & adventure'], ['Psychological', 'Mystery'], ['Ecchi', 'Romance'],
+  ['Supernatural', 'Fantasy'],
 ]
-// standalone titles stay neutral: a colour that groups nothing is just noise
-const SINGLETON = '#64748b'
+// drama and slice of life alone, which is 1% of the catalogue
+const UNGENRED = '#64748b'
+const FRANCHISE = '#ffffff'
 
-const colourFor = (node, franchiseSize) =>
-  (franchiseSize?.get(node.franchise) || 1) > 1
-    ? FRANCHISE_COLOURS[node.franchise % FRANCHISE_COLOURS.length]
-    : SINGLETON
+const groupOf = node =>
+  GENRE_ORDER.find(([genre]) => node.genres?.includes(genre))?.[1] || null
+
+// litFranchise is the selected title's, and only when it has siblings here.
+const colourFor = (node, litFranchise) =>
+  (node.franchise === litFranchise ? FRANCHISE : GENRE_COLOURS[groupOf(node)] || UNGENRED)
 
 // Rating drives size, but gently: the 8.5+ tier spans 8.5 to 9.1, so anything
 // steeper turns a 0.6 point spread into wildly different blobs.
@@ -83,6 +107,12 @@ export default function ExploreGraph() {
   }
 
   const related = selected ? nearest(graph, selected.id, 5) : []
+  // white is reserved for the franchise of whatever is selected, so it only
+  // means something when that franchise has more than one title on screen
+  const litFranchise =
+    selected && view.nodes.filter(n => n.franchise === selected.franchise).length > 1
+      ? selected.franchise
+      : null
   // Only the picked title's five closest are drawn in pink. Marking every
   // node's jump turned a useful signal into wallpaper.
   const litLinks = new Set(
@@ -145,11 +175,13 @@ export default function ExploreGraph() {
                 const isPicked = node.id === selected?.id
                 ctx.beginPath()
                 ctx.arc(node.x, node.y, r, 0, 2 * Math.PI)
-                ctx.fillStyle = colourFor(node, graph.franchiseSize)
+                ctx.fillStyle = colourFor(node, litFranchise)
                 ctx.fill()
                 if (isCentre || isPicked) {
                   ctx.lineWidth = 2 / scale
-                  ctx.strokeStyle = isCentre ? '#ffffff' : 'rgba(255,255,255,0.7)'
+                  ctx.strokeStyle = node.franchise === litFranchise
+                    ? '#0a0a0a'            // a white ring on a white node is nothing
+                    : isCentre ? '#ffffff' : 'rgba(255,255,255,0.7)'
                   ctx.stroke()
                 }
                 // At fit-zoom 120 labels collide into mush, so the map shows shape
@@ -221,13 +253,18 @@ export default function ExploreGraph() {
                 it is closest to; travelling there redraws the map around it.
               </p>
               <p className="panel-legend">
-                <span className="legend-dot franchise" /> a franchise, one colour
-                wherever it appears
+                {Object.entries(GENRE_COLOURS).map(([name, colour]) => (
+                  <span key={name} className="legend-genre">
+                    <span className="legend-dot" style={{ background: colour }} />
+                    {name}
+                  </span>
+                ))}
                 <br />
-                <span className="legend-dot single" /> a standalone title
+                <span className="legend-dot" style={{ background: FRANCHISE }} /> the
+                franchise of the title you pick
                 <br />
-                <span className="legend-line" /> shown when you pick a title: its
-                five closest
+                <span className="legend-line" /> its five closest outside that
+                franchise
               </p>
             </div>
           )}
