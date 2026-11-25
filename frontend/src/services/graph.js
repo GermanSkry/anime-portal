@@ -76,32 +76,8 @@ export function neighbourhood(graph, centreId, budget = BUDGET) {
   }
   return {
     nodes: order.map(id => ({ ...graph.nodes.get(id), depth: depth.get(id) })),
-    links: markCrossFranchise(graph, order, links),
+    links,
   }
-}
-
-/**
- * Mark, for every node, its strongest drawn link that leaves its franchise.
- *
- * Within a franchise everything resembles everything, so those edges say
- * little. The strongest edge going somewhere else is the jump worth taking.
- *
- * It works over the links actually drawn rather than global adjacency, so the
- * mark means the same thing in the opening view — whose edges are computed
- * within the sample — as it does after travelling.
- */
-export function markCrossFranchise(graph, ids, links) {
-  const franchiseOf = id => graph.nodes.get(id)?.franchise
-  const best = new Map()
-  for (const l of links) {
-    const { source: a, target: b, w = 0 } = l
-    if (franchiseOf(a) === franchiseOf(b)) continue
-    for (const end of [a, b]) {
-      if (!best.has(end) || best.get(end).w < w) best.set(end, { w, link: l })
-    }
-  }
-  const marked = new Set([...best.values()].map(v => v.link))
-  return links.map(l => ({ ...l, cross: marked.has(l) }))
 }
 
 /** The opening view: one node per franchise above the rating line. */
@@ -112,6 +88,6 @@ export function seedView(graph) {
     .map(e => ({ source: e.a, target: e.b, w: e.w }))
   return {
     nodes: graph.seed.ids.map(id => ({ ...graph.nodes.get(id), depth: 0 })),
-    links: markCrossFranchise(graph, graph.seed.ids, links),
+    links,
   }
 }

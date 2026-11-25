@@ -36,6 +36,9 @@ export default function ExploreGraph() {
   const [selected, setSelected] = useState(null)
   const [centre, setCentre] = useState(null)
   const [hovered, setHovered] = useState(null)
+  // the renderer's click handler does not carry the native event's detail
+  // count, so a double click is two clicks on one node, timed here
+  const lastClick = useRef({ id: null, at: 0 })
   const [trail, setTrail] = useState([])
   const [error, setError] = useState(null)
   const [size, setSize] = useState({ width: 800, height: 560 })
@@ -80,11 +83,20 @@ export default function ExploreGraph() {
   }
 
   const related = selected ? nearest(graph, selected.id, 5) : []
+  // Only the picked title's five closest are drawn in pink. Marking every
+  // node's jump turned a useful signal into wallpaper.
+  const litLinks = new Set(
+    related.map(r => (selected.id < r.id ? `${selected.id}:${r.id}` : `${r.id}:${selected.id}`))
+  )
+  const isLit = l => {
+    const a = l.source?.id ?? l.source
+    const b = l.target?.id ?? l.target
+    return litLinks.has(a < b ? `${a}:${b}` : `${b}:${a}`)
+  }
 
   return (
     <div className="graph-page">
       <div className="graph-header">
-        <h2 className="graph-title">Anime Explorer</h2>
         <div className="graph-breadcrumbs">
           <button className="crumb" onClick={backToSeed} disabled={!centre}>
             ★ Top rated
@@ -110,14 +122,20 @@ export default function ExploreGraph() {
               nodeId="id"
               nodeRelSize={1}
               nodeVal={n => radiusOf(n) ** 2}
-              linkColor={l => (l.cross
-                ? 'rgba(236,72,153,0.75)'
+              linkColor={l => (isLit(l)
+                ? 'rgba(236,72,153,0.85)'
                 : `rgba(148,163,184,${0.08 + (l.w || 0) * 0.35})`)}
-              linkWidth={l => (l.cross ? 1.6 : 0.3 + (l.w || 0) * 1.2)}
+              linkWidth={l => (isLit(l) ? 1.8 : 0.3 + (l.w || 0) * 1.2)}
               d3VelocityDecay={0.3}
               cooldownTicks={120}
               onNodeHover={n => setHovered(n?.id ?? null)}
-              onNodeClick={n => setSelected(n)}
+              onNodeClick={n => {
+                const now = Date.now()
+                const { id, at } = lastClick.current
+                lastClick.current = { id: n.id, at: now }
+                if (id === n.id && now - at < 400) recentre(n)
+                else setSelected(n)
+              }}
               onNodeRightClick={recentre}
               onEngineStop={() => graphRef.current?.zoomToFit(400, 50)}
               nodeCanvasObject={(node, ctx, scale) => {
@@ -157,7 +175,8 @@ export default function ExploreGraph() {
             />
           </Suspense>
           <div className="graph-hint">
-            hover to name · click for details · pink links leave the franchise
+            {view.nodes.length} anime · hover to name · click to inspect ·
+            double-click to travel
           </div>
         </div>
 
@@ -196,20 +215,18 @@ export default function ExploreGraph() {
             </>
           ) : (
             <div className="panel-empty">
-              <strong>{view.nodes.length}</strong> anime shown.
               <p>
-                The highest rated, one per franchise. Pick a node to see what it
-                is closest to — most of those live outside this view, and
-                travelling to one redraws the map around it at the same size.
+                The highest rated anime, one per franchise. Pick one to see what
+                it is closest to; travelling there redraws the map around it.
               </p>
               <p className="panel-legend">
-                <span className="legend-dot franchise" /> a franchise, same
-                colour wherever it appears
+                <span className="legend-dot franchise" /> a franchise, one colour
+                wherever it appears
                 <br />
                 <span className="legend-dot single" /> a standalone title
                 <br />
-                <span className="legend-line" /> the closest title outside the
-                franchise
+                <span className="legend-line" /> shown when you pick a title: its
+                five closest
               </p>
             </div>
           )}
