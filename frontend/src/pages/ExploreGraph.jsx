@@ -8,12 +8,20 @@ import { track } from '../services/analytics'
 // for them, so the renderer only loads when this route does
 const ForceGraph2D = lazy(() => import('react-force-graph-2d'))
 
-const GENRE_COLOURS = {
-  Action: '#f43f5e', Adventure: '#f59e0b', Comedy: '#eab308', Drama: '#8b5cf6',
-  Fantasy: '#22c55e', 'Sci-Fi': '#06b6d4', Romance: '#ec4899', Horror: '#dc2626',
-  Mystery: '#6366f1', Psychological: '#a855f7', Supernatural: '#14b8a6',
-}
-const colourFor = node => GENRE_COLOURS[node.genres?.[0]] || '#94a3b8'
+// A franchise keeps one colour wherever it appears, so Naruto is always the
+// same red. Colours repeat across franchises — with 371 of them that is
+// unavoidable — but two that share a hue are rarely on screen together.
+const FRANCHISE_COLOURS = [
+  '#f43f5e', '#f59e0b', '#22c55e', '#06b6d4', '#a855f7', '#ec4899',
+  '#eab308', '#14b8a6', '#8b5cf6', '#fb7185', '#34d399', '#60a5fa',
+]
+// standalone titles stay neutral: a colour that groups nothing is just noise
+const SINGLETON = '#64748b'
+
+const colourFor = (node, franchiseSize) =>
+  (franchiseSize?.get(node.franchise) || 1) > 1
+    ? FRANCHISE_COLOURS[node.franchise % FRANCHISE_COLOURS.length]
+    : SINGLETON
 
 // Rating drives size, but gently: the 8.5+ tier spans 8.5 to 9.1, so anything
 // steeper turns a 0.6 point spread into wildly different blobs.
@@ -102,8 +110,10 @@ export default function ExploreGraph() {
               nodeId="id"
               nodeRelSize={1}
               nodeVal={n => radiusOf(n) ** 2}
-              linkColor={l => `rgba(148,163,184,${0.1 + (l.w || 0) * 0.5})`}
-              linkWidth={l => 0.3 + (l.w || 0) * 1.6}
+              linkColor={l => (l.cross
+                ? 'rgba(236,72,153,0.75)'
+                : `rgba(148,163,184,${0.08 + (l.w || 0) * 0.35})`)}
+              linkWidth={l => (l.cross ? 1.6 : 0.3 + (l.w || 0) * 1.2)}
               d3VelocityDecay={0.3}
               cooldownTicks={120}
               onNodeHover={n => setHovered(n?.id ?? null)}
@@ -116,7 +126,7 @@ export default function ExploreGraph() {
                 const isPicked = node.id === selected?.id
                 ctx.beginPath()
                 ctx.arc(node.x, node.y, r, 0, 2 * Math.PI)
-                ctx.fillStyle = colourFor(node)
+                ctx.fillStyle = colourFor(node, graph.franchiseSize)
                 ctx.fill()
                 if (isCentre || isPicked) {
                   ctx.lineWidth = 2 / scale
@@ -147,7 +157,7 @@ export default function ExploreGraph() {
             />
           </Suspense>
           <div className="graph-hint">
-            hover to name · click for details · zoom in for every label
+            hover to name · click for details · pink links leave the franchise
           </div>
         </div>
 
@@ -188,9 +198,18 @@ export default function ExploreGraph() {
             <div className="panel-empty">
               <strong>{view.nodes.length}</strong> anime shown.
               <p>
-                The opening view is the highest rated, one per franchise. Pick any
-                node to see what it is closest to — most of those live outside
-                this view, and travelling to one redraws the map around it.
+                The highest rated, one per franchise. Pick a node to see what it
+                is closest to — most of those live outside this view, and
+                travelling to one redraws the map around it at the same size.
+              </p>
+              <p className="panel-legend">
+                <span className="legend-dot franchise" /> a franchise, same
+                colour wherever it appears
+                <br />
+                <span className="legend-dot single" /> a standalone title
+                <br />
+                <span className="legend-line" /> the closest title outside the
+                franchise
               </p>
             </div>
           )}

@@ -25,7 +25,7 @@ SEED_EDGES_PER_NODE = 4
 @router.get("")
 async def get_graph(
     req: Request,
-    seed_min_rating: float = Query(8.5, ge=0, le=10),
+    seed_size: int = Query(120, ge=10, le=400),
     collapse_franchises: bool = Query(True),
 ):
     """Every node and edge, plus the opening sample to render first."""
@@ -50,13 +50,16 @@ async def get_graph(
             """)
             edges = [{"a": r[0], "b": r[1], "w": float(r[2])} for r in await cur.fetchall()]
 
-            # The opening sample: one node per franchise above the rating line,
-            # represented by its best-rated entry, with edges among themselves.
+            # The opening sample: the best-rated titles, one per franchise.
+            # Sized by count rather than a rating cut, so the map is the same
+            # size here as it is after travelling — a rating line gives 73
+            # nodes at 8.5 and 139 at 8.3, and the view would change size.
             pick = (
-                "SELECT DISTINCT ON (franchise_id) id FROM anime "
-                "WHERE rating >= %s ORDER BY franchise_id, rating DESC, id"
+                "SELECT id FROM (SELECT DISTINCT ON (franchise_id) id, rating FROM anime "
+                "WHERE rating IS NOT NULL ORDER BY franchise_id, rating DESC, id) f "
+                "ORDER BY rating DESC LIMIT %s"
                 if collapse_franchises
-                else "SELECT id FROM anime WHERE rating >= %s"
+                else "SELECT id FROM anime WHERE rating IS NOT NULL ORDER BY rating DESC LIMIT %s"
             )
             await cur.execute(f"""
                 WITH sample AS ({pick}),
@@ -72,7 +75,7 @@ async def get_graph(
                     ORDER BY e1.plot_embedding <=> e2.plot_embedding
                     LIMIT %s
                 ) n;
-            """, (seed_min_rating, SEED_EDGES_PER_NODE))  # noqa: S608 - pick is one of two literals above
+            """, (seed_size, SEED_EDGES_PER_NODE))  # noqa: S608 - pick is one of two literals above
             seed_edges = [{"a": r[0], "b": r[1], "w": float(r[2])} for r in await cur.fetchall()]
             seed_ids = sorted({e["a"] for e in seed_edges})
 
@@ -84,7 +87,7 @@ async def get_graph(
             return {
                 "nodes": nodes,
                 "edges": edges,
-                "seed": {"ids": seed_ids, "edges": seed_edges, "min_rating": seed_min_rating},
+                "seed": {"ids": seed_ids, "edges": seed_edges, "size": len(seed_ids)},
             }
     except Exception as e:
         logger.error(f"Error building the graph: {e}", exc_info=True)

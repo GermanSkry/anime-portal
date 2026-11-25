@@ -24,10 +24,18 @@ export async function fetchGraph() {
   }
   for (const list of adj.values()) list.sort((x, y) => y.w - x.w)
 
+  // Only franchises with more than one title are worth a colour: a singleton
+  // has no group to reveal, and colouring it adds noise with no information.
+  const franchiseSize = new Map()
+  for (const n of data.nodes) {
+    franchiseSize.set(n.franchise, (franchiseSize.get(n.franchise) || 0) + 1)
+  }
+
   return {
     nodes: new Map(data.nodes.map(n => [n.id, n])),
     adj,
     seed: data.seed,
+    franchiseSize,
   }
 }
 
@@ -68,17 +76,42 @@ export function neighbourhood(graph, centreId, budget = BUDGET) {
   }
   return {
     nodes: order.map(id => ({ ...graph.nodes.get(id), depth: depth.get(id) })),
-    links,
+    links: markCrossFranchise(graph, order, links),
   }
+}
+
+/**
+ * Mark, for every node, its strongest drawn link that leaves its franchise.
+ *
+ * Within a franchise everything resembles everything, so those edges say
+ * little. The strongest edge going somewhere else is the jump worth taking.
+ *
+ * It works over the links actually drawn rather than global adjacency, so the
+ * mark means the same thing in the opening view — whose edges are computed
+ * within the sample — as it does after travelling.
+ */
+export function markCrossFranchise(graph, ids, links) {
+  const franchiseOf = id => graph.nodes.get(id)?.franchise
+  const best = new Map()
+  for (const l of links) {
+    const { source: a, target: b, w = 0 } = l
+    if (franchiseOf(a) === franchiseOf(b)) continue
+    for (const end of [a, b]) {
+      if (!best.has(end) || best.get(end).w < w) best.set(end, { w, link: l })
+    }
+  }
+  const marked = new Set([...best.values()].map(v => v.link))
+  return links.map(l => ({ ...l, cross: marked.has(l) }))
 }
 
 /** The opening view: one node per franchise above the rating line. */
 export function seedView(graph) {
   const ids = new Set(graph.seed.ids)
+  const links = graph.seed.edges
+    .filter(e => ids.has(e.a) && ids.has(e.b))
+    .map(e => ({ source: e.a, target: e.b, w: e.w }))
   return {
     nodes: graph.seed.ids.map(id => ({ ...graph.nodes.get(id), depth: 0 })),
-    links: graph.seed.edges
-      .filter(e => ids.has(e.a) && ids.has(e.b))
-      .map(e => ({ source: e.a, target: e.b, w: e.w })),
+    links: markCrossFranchise(graph, graph.seed.ids, links),
   }
 }
