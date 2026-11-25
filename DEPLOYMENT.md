@@ -80,7 +80,11 @@ docker compose up -d python-backend go-search
 
 **Data** — ingest runs automatically on merge, but only when a commit touches
 `ingest_anime.py`, `fetch_anime_enhanced.py`, `embeddings.py` or
-`query_terms.py`. It is safe to run often: it upserts on `anilist_id` and only
+`query_terms.py`. A commit to `fetch_anime_enhanced.py` runs a fetch first:
+when the fetcher changes what it asks AniList for, the new field is not in the
+server's `anime.json` at all, and ingesting the old file would write the same
+nulls. That is how trailers stayed empty for weeks — the column, the ingest
+mapping and the iframe were all correct, and the query never asked for them. It is safe to run often: it upserts on `anilist_id` and only
 recomputes an embedding when that title's plot changed, so an unchanged
 catalogue takes seconds rather than minutes, and anime ids stay stable across
 runs.

@@ -164,7 +164,10 @@ the commit SHA, and ship them to the VPS over SSH. The frontend goes to Vercel
 in parallel. Roughly a minute end to end.
 
 The database is only re-ingested when a commit touches the data pipeline
-itself, so an unrelated change never rebuilds the catalogue. A rollback is the
+itself, so an unrelated change never rebuilds the catalogue. A commit to
+`fetch_anime_enhanced.py` also re-downloads from AniList first — a new field
+is not in the server's `anime.json`, so ingesting the old file would only
+write the same nulls. A rollback is the
 Deploy workflow run by hand with an older commit SHA — that path skips the
 build and only pulls.
 
