@@ -55,9 +55,9 @@ export const animeAPI = {
     }
   },
 
-  getSimilar: async (id, limit = 4, minRating = 6) => {
+  getSimilar: async (id, limit = 5) => {
     try {
-      const res = await fetch(`${API_BASE}/api/anime/${id}/similar?limit=${limit}&min_rating=${minRating}`, { headers: idHeaders() })
+      const res = await fetch(`${API_BASE}/api/anime/${id}/similar?limit=${limit}`, { headers: idHeaders() })
       return await res.json()
     } catch (error) {
       console.error('Error fetching similar anime:', error)

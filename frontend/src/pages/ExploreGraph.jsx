@@ -118,6 +118,11 @@ export default function ExploreGraph() {
     track('graph_recentred', { anime_id: node.id, from_seed: centre === null })
   }, [graph, centre])
 
+  const openTitle = (node) => {
+    track('anime_opened', { source: 'graph', anime_id: node.id })
+    navigate(`/title/${node.id}`)
+  }
+
   const backToSeed = () => {
     setView(seedView(graph)); setCentre(null); setSelected(null); setTrail([])
     track('graph_reset', {})
@@ -266,10 +271,12 @@ export default function ExploreGraph() {
         <aside className="graph-panel">
           {selected ? (
             <>
-              {selected.cover && (
-                <div className="panel-cover" style={{ backgroundImage: `url(${selected.cover})` }} />
-              )}
-              <h3 className="panel-title">{selected.name}</h3>
+              <button className="panel-open" onClick={() => openTitle(selected)}>
+                {selected.cover && (
+                  <div className="panel-cover" style={{ backgroundImage: `url(${selected.cover})` }} />
+                )}
+                <h3 className="panel-title">{selected.name}</h3>
+              </button>
               <div className="panel-meta">
                 {selected.year} · {selected.rating}★
               </div>
@@ -292,7 +299,7 @@ export default function ExploreGraph() {
                 <button className="panel-btn" onClick={() => recentre(selected)}>
                   Travel here
                 </button>
-                <button className="panel-btn ghost" onClick={() => navigate(`/title/${selected.id}`)}>
+                <button className="panel-btn ghost" onClick={() => openTitle(selected)}>
                   Full page
                 </button>
               </div>

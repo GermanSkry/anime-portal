@@ -147,10 +147,25 @@
   overflow-y: auto;
 }
 
+/* cover and title together are one button to the full page */
+.panel-open {
+  display: block;
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.panel-open:hover .panel-title {
+  color: var(--accent, #d946ef);
+}
+
 .panel-cover {
   flex: none;             /* a flex item, so stop it being squeezed */
   width: 100%;
-  height: 160px;
+  height: 210px;
   background-size: cover;
   background-position: center;
   border-radius: 8px;
@@ -158,7 +173,9 @@
 }
 
 .panel-title {
-  font-size: 15px;
+  color: var(--text-primary);
+  font-size: 16px;
+  transition: color 160ms ease-out;
   line-height: 1.3;
   margin-bottom: 4px;
   overflow-wrap: anywhere;
