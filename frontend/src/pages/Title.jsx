@@ -34,6 +34,8 @@ export default function Title() {
       }
 
       try {
+        setFranchise([])
+        setSimilar([])
         const data = await animeAPI.getById(id)
         if (data) {
           setTitle(data)
@@ -77,9 +79,16 @@ export default function Title() {
     </div>
   }
 
-  // the whole run in watch order, with this title in its place, so the strip
-  // shows where you are rather than starting from the oldest every time
-  const run = [...franchise, { ...title, id: Number(id), current: true }]
+  // The whole run in watch order, with this title in its place, so the strip
+  // shows where you are rather than starting from the oldest every time.
+  //
+  // The filter is not belt and braces. Moving between two titles of one
+  // franchise, `id` changes a render before the new list arrives, so the old
+  // list still holds the title that is now current — two children with the
+  // same key, which React renders twice and then leaves in the DOM after the
+  // list settles. That was the season appearing twice.
+  const current = Number(id)
+  const run = [...franchise.filter(a => a.id !== current), { ...title, id: current, current: true }]
     .sort((a, b) => (a.year || 0) - (b.year || 0) || a.id - b.id)
 
   return (
@@ -150,7 +159,7 @@ export default function Title() {
 
       {franchise.length > 0 && (
         <div className="similar-section">
-          <div className="similar-title">🎞️ The franchise, in order</div>
+          <div className="similar-title">🎞️ The franchise</div>
           <div className="strip-wrap">
             {run.length > 4 && (
               <button className="strip-arrow left" aria-label="Earlier"
