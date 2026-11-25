@@ -352,14 +352,21 @@ async def ingest_anime():
             by_anilist = dict(await cur.fetchall())
 
             edges = []
+            # Pairs of AniList ids, including ids we did not import. A title
+            # outside the 2,500 cannot be a row in related_anime, but it still
+            # joins the two titles either side of it: Sound! Euphonium 3 links
+            # only to Ensemble Contest, which links to the movie, which links
+            # to seasons 1 and 2. Dropping those ids split that franchise in
+            # two. Bridging through them merges 24 components and leaves the
+            # largest at 28 (Dragon Ball), so it does not run away.
+            links = []
             for anime in anime_list:
                 src = by_anilist.get(anime["id"])
-                if src is None:
-                    continue
                 for rel in anime.get("relations") or []:
+                    if rel.get("to_id") is not None:
+                        links.append((anime["id"], rel["to_id"]))
                     dst = by_anilist.get(rel.get("to_id"))
-                    # AniList links out to titles outside our 2,500; skip those
-                    if dst is not None and dst != src:
+                    if src is not None and dst is not None and dst != src:
                         edges.append((src, dst, rel.get("type") or "RELATED"))
 
             await cur.execute("TRUNCATE related_anime;")
@@ -384,16 +391,15 @@ async def ingest_anime():
                     x = parent[x]
                 return x
 
-            for src, dst, _ in edges:
+            for src, dst in links:
                 ra, rb = find(src), find(dst)
                 if ra != rb:
                     parent[ra] = rb
 
-            all_ids = list(by_anilist.values())
-            # the component's smallest id names it, so the value is stable across runs
+            # keyed by AniList id above, so group our rows by their component
             groups: dict[int, list[int]] = {}
-            for aid in all_ids:
-                groups.setdefault(find(aid), []).append(aid)
+            for anilist_id, aid in by_anilist.items():
+                groups.setdefault(find(anilist_id), []).append(aid)
             assignments = [(min(members), aid) for members in groups.values() for aid in members]
             await cur.executemany("UPDATE anime SET franchise_id = %s WHERE id = %s;", assignments)
             multi = sum(1 for m in groups.values() if len(m) > 1)
