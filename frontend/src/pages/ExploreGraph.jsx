@@ -286,21 +286,32 @@ export default function ExploreGraph() {
                 The highest rated anime, one per franchise. Pick one to see what
                 it is closest to; travelling there redraws the map around it.
               </p>
-              <p className="panel-legend">
-                <span className="legend-genres">
+
+              <dl className="panel-howto">
+                <dt>Hover</dt><dd>name the title</dd>
+                <dt>Click</dt><dd>open it here</dd>
+                <dt>Double-click</dt><dd>redraw the map around it</dd>
+                <dt>Search</dt><dd>start somewhere of your own</dd>
+              </dl>
+
+              <div className="panel-legend">
+                <div className="panel-section">What the colours mean</div>
+                <ul className="legend-genres">
                   {Object.entries(GENRE_COLOURS).map(([name, colour]) => (
-                    <span key={name} className="legend-genre">
+                    <li key={name} className="legend-genre">
                       <span className="legend-dot" style={{ background: colour }} />
                       {name}
-                    </span>
+                    </li>
                   ))}
-                </span>
-                <span className="legend-dot" style={{ background: FRANCHISE }} /> the
-                franchise of the title you pick
-                <br />
-                <span className="legend-line" /> its five closest outside that
-                franchise
-              </p>
+                  <li className="legend-genre">
+                    <span className="legend-dot" style={{ background: FRANCHISE }} />
+                    the franchise you pick
+                  </li>
+                  <li className="legend-genre">
+                    <span className="legend-line" /> its five closest outside it
+                  </li>
+                </ul>
+              </div>
             </div>
           )}
         </aside>

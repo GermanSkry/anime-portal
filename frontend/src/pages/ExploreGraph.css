@@ -258,9 +258,28 @@
   display: flex;
   flex: 1;
   flex-direction: column;
-  font-size: 13px;
-  line-height: 1.55;
+  gap: 20px;
+  font-size: 15px;
+  line-height: 1.5;
   color: var(--text-secondary);
+}
+
+/* what each gesture does, as a two-column list */
+.panel-howto {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 10px;
+  margin: 0;
+  font-size: 13.5px;
+}
+
+.panel-howto dt {
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.panel-howto dd {
+  margin: 0;
 }
 
 .panel-empty p:not(.panel-legend) {
@@ -293,25 +312,23 @@
 
 .panel-legend {
   margin-top: auto;          /* sits at the foot of the box, whatever its height */
-  padding-top: 12px;
+  padding-top: 14px;
   border-top: 1px solid var(--border);
-  font-size: 11.5px;
-  line-height: 1.8;
+  font-size: 13.5px;
 }
 
-/* two even columns, so the eight groups fill the width instead of wrapping
-   into a ragged block */
 .legend-genres {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2px 8px;
-  margin-bottom: 10px;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .legend-dot {
   display: inline-block;
-  width: 9px;
-  height: 9px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   margin-right: 6px;
   vertical-align: middle;
